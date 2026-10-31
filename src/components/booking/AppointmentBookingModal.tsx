@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { Doctor, Speciality, Appointment } from '../../types';
-import { dataService } from '../../services/dataService';
+import { dataService, isUUID } from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime12 } from '../../lib/utils';
 
@@ -69,16 +69,24 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
       dataService.getDoctors().then(docs => {
         setDoctors(docs);
         if (preselectedDoctor) {
-          setSelectedDoctor(preselectedDoctor);
-          const matchedSpec = docs.find(d => d.id === preselectedDoctor.id)?.speciality_id;
-          if (matchedSpec) {
-            dataService.getSpecialities().then(specs => {
-              const sp = specs.find(s => s.id === matchedSpec);
-              if (sp) setSelectedSpeciality(sp);
-            });
+          const freshDoc = docs.find(d => d.id === preselectedDoctor.id) || preselectedDoctor;
+          if (freshDoc.availability_status === 'Available') {
+            setSelectedDoctor(freshDoc);
+            const matchedSpec = docs.find(d => d.id === preselectedDoctor.id)?.speciality_id;
+            if (matchedSpec) {
+              dataService.getSpecialities().then(specs => {
+                const sp = specs.find(s => s.id === matchedSpec);
+                if (sp) setSelectedSpeciality(sp);
+              });
+            }
+            // Fast-forward to step 3 only if doctor is available
+            setStep(3);
+          } else {
+            // Doctor is On Leave or Not Available - prevent booking and notify patient
+            setErrorMsg(`Dr. ${freshDoc.name} is currently ${freshDoc.availability_status}. Please select another doctor.`);
+            setSelectedDoctor(null);
+            setStep(2);
           }
-          // Fast-forward to step 3 if doctor was preselected
-          setStep(3);
         }
       });
 
@@ -157,7 +165,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
 
     try {
       const created = await dataService.bookAppointment({
-        patient_id: user?.id || 'guest-patient-1',
+        patient_id: user?.id && isUUID(user.id) ? user.id : null,
         patient_name: patientName,
         patient_phone: patientPhone,
         patient_email: patientEmail,
@@ -372,39 +380,65 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                       No doctors available in this speciality right now.
                     </div>
                   ) : (
-                    availableDoctors.map((doc) => (
-                      <div
-                        key={doc.id}
-                        onClick={() => handleSelectDoctor(doc)}
-                        className={`p-3.5 rounded-xl border cursor-pointer transition-all flex items-center justify-between ${
-                          selectedDoctor?.id === doc.id
-                            ? 'border-teal-500 bg-teal-50/70 text-teal-900 ring-2 ring-teal-500/20'
-                            : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <img
-                            src={doc.photo_url}
-                            alt={doc.name}
-                            className="w-12 h-12 rounded-xl object-cover object-top border border-slate-200"
-                          />
-                          <div>
-                            <h5 className="text-xs font-bold text-slate-900">{doc.name}</h5>
-                            <p className="text-[11px] text-slate-500">{doc.qualifications} • {doc.experience_years} Yrs</p>
-                            <span className="text-[10px] font-bold text-teal-700">Fee: ₹{doc.consultation_fee}</span>
+                    availableDoctors.map((doc) => {
+                      const isDoctorAvailable = doc.availability_status === 'Available';
+                      return (
+                        <div
+                          key={doc.id}
+                          onClick={() => {
+                            if (isDoctorAvailable) {
+                              handleSelectDoctor(doc);
+                            }
+                          }}
+                          className={`p-3.5 rounded-xl border transition-all flex items-center justify-between ${
+                            !isDoctorAvailable
+                              ? 'border-slate-200 bg-slate-50/80 opacity-70 cursor-not-allowed'
+                              : selectedDoctor?.id === doc.id
+                              ? 'border-teal-500 bg-teal-50/70 text-teal-900 ring-2 ring-teal-500/20 cursor-pointer'
+                              : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50 cursor-pointer'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <img
+                              src={doc.photo_url}
+                              alt={doc.name}
+                              className="w-12 h-12 rounded-xl object-cover object-top border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h5 className="text-xs font-bold text-slate-900">{doc.name}</h5>
+                                {!isDoctorAvailable && (
+                                  <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-300">
+                                    Unavailable
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11px] text-slate-500">{doc.qualifications} • {doc.experience_years} Yrs</p>
+                              <span className="text-[10px] font-bold text-teal-700">Fee: ₹{doc.consultation_fee}</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            {isDoctorAvailable ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 block">
+                                Available
+                              </span>
+                            ) : doc.availability_status === 'On Leave' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500 text-white block animate-pulse">
+                                On Leave
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700 block">
+                                {doc.availability_status}
+                              </span>
+                            )}
+                            <span className="text-[10px] text-slate-400 mt-1 block">
+                              {doc.working_hours_start} - {doc.working_hours_end}
+                            </span>
                           </div>
                         </div>
-
-                        <div className="text-right">
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 block">
-                            {doc.availability_status}
-                          </span>
-                          <span className="text-[10px] text-slate-400 mt-1 block">
-                            {doc.working_hours_start} - {doc.working_hours_end}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

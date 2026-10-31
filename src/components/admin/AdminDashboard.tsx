@@ -20,8 +20,19 @@ import {
   Save,
   Check,
   Eye,
-  FileText
+  FileText,
+  Microscope,
+  Trash2,
+  Upload,
+  Link as LinkIcon,
+  Image as ImageIcon,
+  Lock,
+  KeyRound,
+  Bell,
+  MessageSquare,
+  Phone
 } from 'lucide-react';
+import { api } from '../../services/apiClient';
 import { 
   Appointment, 
   AppointmentStatus, 
@@ -30,13 +41,18 @@ import {
   HospitalSettings, 
   Speciality, 
   AvailabilityStatus,
-  SchemeEmpanelmentStatus 
+  SchemeEmpanelmentStatus,
+  LaboratoryTest,
+  LaboratorySettings,
+  Notification
 } from '../../types';
 import { dataService } from '../../services/dataService';
 import { formatDate, formatTime12 } from '../../lib/utils';
+import { openWhatsAppForAppointment } from '../../lib/whatsapp';
+import { AdminLaboratoryTab } from './AdminLaboratoryTab';
 
 export const AdminDashboard: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'appointments' | 'doctors' | 'schemes' | 'settings'>('appointments');
+  const [activeTab, setActiveTab] = useState<'appointments' | 'doctors' | 'laboratory' | 'schemes' | 'settings'>('appointments');
   const [loading, setLoading] = useState<boolean>(true);
 
   // Data
@@ -45,6 +61,13 @@ export const AdminDashboard: React.FC = () => {
   const [specialities, setSpecialities] = useState<Speciality[]>([]);
   const [schemes, setSchemes] = useState<HealthScheme[]>([]);
   const [settings, setSettings] = useState<HospitalSettings | null>(null);
+  const [labTests, setLabTests] = useState<LaboratoryTest[]>([]);
+  const [labSettings, setLabSettings] = useState<LaboratorySettings | null>(null);
+
+  // Admin Notifications
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notificationsOpen, setNotificationsOpen] = useState<boolean>(false);
+  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
   // Filters for appointments
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -54,9 +77,12 @@ export const AdminDashboard: React.FC = () => {
   const [rejectingAppointment, setRejectingAppointment] = useState<Appointment | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   
-  // Doctor Add/Edit Modal
+  // Doctor Add/Edit & Delete Modals
   const [editingDoctor, setEditingDoctor] = useState<Doctor | null>(null);
   const [isAddDoctorModalOpen, setIsAddDoctorModalOpen] = useState<boolean>(false);
+  const [doctorToDelete, setDoctorToDelete] = useState<Doctor | null>(null);
+  const [isDeletingDoctor, setIsDeletingDoctor] = useState<boolean>(false);
+  const [doctorImageSourceTab, setDoctorImageSourceTab] = useState<'url' | 'pc'>('url');
   const [doctorForm, setDoctorForm] = useState<Partial<Doctor>>({
     name: '',
     speciality_id: '',
@@ -96,32 +122,107 @@ export const AdminDashboard: React.FC = () => {
   // Settings Feedback
   const [settingsSaved, setSettingsSaved] = useState<boolean>(false);
 
+  // Admin Password Management State
+  const [newAdminPassword, setNewAdminPassword] = useState<string>('');
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState<string>('');
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState<string | null>(null);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(null);
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState<boolean>(false);
+
+  const handleChangeAdminPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordChangeSuccess(null);
+    setPasswordChangeError(null);
+
+    if (!newAdminPassword || newAdminPassword.length < 6) {
+      setPasswordChangeError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (newAdminPassword !== confirmAdminPassword) {
+      setPasswordChangeError('Passwords do not match.');
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    try {
+      await api.put('/auth/change-password', {
+        newPassword: newAdminPassword,
+      });
+      setPasswordChangeSuccess('Admin password updated successfully in MySQL database!');
+      setNewAdminPassword('');
+      setConfirmAdminPassword('');
+    } catch (err: any) {
+      setPasswordChangeError(err.message || 'Failed to update password');
+    } finally {
+      setPasswordChangeLoading(false);
+    }
+  };
+
   const loadAllAdminData = async () => {
     setLoading(true);
     try {
-      const [apts, docs, specs, schs, setts] = await Promise.all([
+      const [apts, docs, specs, schs, setts, tests, labSetts] = await Promise.all([
         dataService.getAppointments(),
         dataService.getDoctors(),
         dataService.getSpecialities(),
         dataService.getHealthSchemes(),
         dataService.getHospitalSettings(),
+        dataService.getLaboratoryTests({ includeDrafts: true }),
+        dataService.getLaboratorySettings(),
       ]);
       setAppointments(apts);
       setDoctors(docs);
       setSpecialities(specs);
       setSchemes(schs);
       setSettings(setts);
+      setLabTests(tests);
+      setLabSettings(labSetts);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchAdminNotifications = async () => {
+    try {
+      const notifs = await dataService.getNotifications(undefined, true);
+      setNotifications(notifs);
+    } catch (err) {
+      console.warn('Failed to fetch admin notifications:', err);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    await dataService.markAllNotificationsRead(undefined, true);
+    await fetchAdminNotifications();
+  };
+
+  const handleMarkSingleNotificationRead = async (id: string) => {
+    await dataService.markNotificationRead(id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+  };
+
   useEffect(() => {
     loadAllAdminData();
+    fetchAdminNotifications();
+    const interval = setInterval(fetchAdminNotifications, 8000);
+    const handleNewNotif = () => fetchAdminNotifications();
+    window.addEventListener('new-hospital-notification', handleNewNotif);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('new-hospital-notification', handleNewNotif);
+    };
   }, []);
 
   // Handlers for Appointment Status Change
-  const handleApproveAppointment = async (aptId: string) => {
+  const handleApproveAppointment = async (aptOrId: Appointment | string) => {
+    const apt = typeof aptOrId === 'string' 
+      ? appointments.find(a => a.id === aptOrId) 
+      : aptOrId;
+    if (apt) {
+      openWhatsAppForAppointment(apt, 'Approved');
+    }
+    const aptId = typeof aptOrId === 'string' ? aptOrId : aptOrId.id;
     await dataService.updateAppointmentStatus(aptId, 'Approved');
     await loadAllAdminData();
   };
@@ -133,10 +234,13 @@ export const AdminDashboard: React.FC = () => {
 
   const handleConfirmReject = async () => {
     if (!rejectingAppointment) return;
+    const currentApt = rejectingAppointment;
+    const currentReason = rejectionReason || 'Declined by hospital coordinator';
+    openWhatsAppForAppointment(currentApt, 'Rejected', currentReason);
     await dataService.updateAppointmentStatus(
-      rejectingAppointment.id, 
+      currentApt.id, 
       'Rejected', 
-      rejectionReason || 'Declined by hospital coordinator'
+      currentReason
     );
     setRejectingAppointment(null);
     await loadAllAdminData();
@@ -144,6 +248,13 @@ export const AdminDashboard: React.FC = () => {
 
   const handleApproveReschedule = async (apt: Appointment) => {
     // Approving a Reschedule Requested appointment promotes the requested date/time
+    if (apt) {
+      openWhatsAppForAppointment({
+        ...apt,
+        appointment_date: apt.requested_reschedule_date || apt.appointment_date,
+        start_time: apt.requested_reschedule_time || apt.start_time,
+      }, 'Approved');
+    }
     await dataService.updateAppointmentStatus(apt.id, 'Approved');
     await loadAllAdminData();
   };
@@ -156,40 +267,127 @@ export const AdminDashboard: React.FC = () => {
   // Handlers for Doctor Management
   const handleSaveDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingDoctor) {
-      await dataService.updateDoctor(editingDoctor.id, doctorForm);
-    } else {
-      await dataService.addDoctor(doctorForm as any);
+    try {
+      const specId = doctorForm.speciality_id || specialities[0]?.id || '';
+      const matchedSpec = specialities.find(s => s.id === specId);
+      const formToSave = {
+        ...doctorForm,
+        speciality_id: specId,
+        speciality_name: matchedSpec?.name || doctorForm.speciality_name || 'General Medicine'
+      };
+      if (editingDoctor) {
+        await dataService.updateDoctor(editingDoctor.id, formToSave);
+      } else {
+        await dataService.addDoctor(formToSave as any);
+      }
+      setEditingDoctor(null);
+      setIsAddDoctorModalOpen(false);
+      await loadAllAdminData();
+    } catch (err) {
+      console.error('Failed to save doctor:', err);
     }
-    setEditingDoctor(null);
-    setIsAddDoctorModalOpen(false);
-    await loadAllAdminData();
   };
 
   const handleToggleDoctorStatus = async (doc: Doctor, newStatus: AvailabilityStatus) => {
-    await dataService.updateDoctor(doc.id, { availability_status: newStatus });
-    await loadAllAdminData();
+    // Optimistic UI state update for instant visual feedback
+    setDoctors(prev => prev.map(d => d.id === doc.id ? { ...d, availability_status: newStatus } : d));
+    try {
+      await dataService.updateDoctor(doc.id, { availability_status: newStatus });
+      await loadAllAdminData();
+    } catch (err) {
+      console.error('Failed to toggle doctor status:', err);
+    }
+  };
+
+  const handleDoctorImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (.jpg, .png, .webp).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (loadEvent) => {
+      const rawBase64 = loadEvent.target?.result as string;
+      if (!rawBase64) return;
+
+      const img = new Image();
+      img.onload = () => {
+        const MAX_DIM = 1000;
+        let { width, height } = img;
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width > height) {
+            height = Math.round((height * MAX_DIM) / width);
+            width = MAX_DIM;
+          } else {
+            width = Math.round((width * MAX_DIM) / height);
+            height = MAX_DIM;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const optimized = canvas.toDataURL('image/jpeg', 0.88);
+          setDoctorForm(prev => ({ ...prev, photo_url: optimized }));
+        } else {
+          setDoctorForm(prev => ({ ...prev, photo_url: rawBase64 }));
+        }
+      };
+      img.onerror = () => {
+        setDoctorForm(prev => ({ ...prev, photo_url: rawBase64 }));
+      };
+      img.src = rawBase64;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleConfirmDeleteDoctor = async () => {
+    if (!doctorToDelete) return;
+    setIsDeletingDoctor(true);
+    try {
+      await dataService.deleteDoctor(doctorToDelete.id);
+      setDoctors(prev => prev.filter(d => d.id !== doctorToDelete.id));
+      setDoctorToDelete(null);
+      await loadAllAdminData();
+    } catch (err) {
+      console.error('Failed to delete doctor:', err);
+    } finally {
+      setIsDeletingDoctor(false);
+    }
   };
 
   // Handlers for Scheme Management
   const handleSaveScheme = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingScheme) {
-      await dataService.updateHealthScheme(editingScheme.id, schemeForm);
-    } else {
-      await dataService.addHealthScheme(schemeForm as any);
+    try {
+      if (editingScheme) {
+        await dataService.updateHealthScheme(editingScheme.id, schemeForm);
+      } else {
+        await dataService.addHealthScheme(schemeForm as any);
+      }
+      setEditingScheme(null);
+      setIsAddSchemeModalOpen(false);
+      await loadAllAdminData();
+    } catch (err) {
+      console.error('Failed to save scheme:', err);
     }
-    setEditingScheme(null);
-    setIsAddSchemeModalOpen(false);
-    await loadAllAdminData();
   };
 
   const handleToggleSchemeAcceptance = async (scheme: HealthScheme, newStatus: SchemeEmpanelmentStatus) => {
-    await dataService.updateHealthScheme(scheme.id, { 
-      hospital_acceptance_status: newStatus,
-      last_verified_date: new Date().toISOString().split('T')[0]
-    });
-    await loadAllAdminData();
+    // Optimistic UI state update
+    setSchemes(prev => prev.map(s => s.id === scheme.id ? { ...s, hospital_acceptance_status: newStatus } : s));
+    try {
+      await dataService.updateHealthScheme(scheme.id, { 
+        hospital_acceptance_status: newStatus,
+        last_verified_date: new Date().toISOString().split('T')[0]
+      });
+      await loadAllAdminData();
+    } catch (err) {
+      console.error('Failed to toggle scheme status:', err);
+    }
   };
 
   // Handlers for Settings
@@ -242,11 +440,104 @@ export const AdminDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Notification Bell in Admin Dashboard */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen(!notificationsOpen)}
+                aria-label="Admin Notifications"
+                className="relative px-3 py-2 rounded-xl border border-slate-200 bg-white text-slate-700 hover:text-teal-600 hover:bg-slate-50 transition-colors shadow-xs flex items-center gap-2"
+              >
+                <Bell className="w-4 h-4 text-amber-600" />
+                <span className="text-xs font-bold hidden sm:inline">Alerts</span>
+                {notifications.filter(n => !n.is_read).length > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-full bg-rose-500 text-white text-[10px] font-bold animate-pulse">
+                    {notifications.filter(n => !n.is_read).length}
+                  </span>
+                )}
+              </button>
+
+              {/* Dropdown Popover */}
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-50">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-bold text-slate-900 text-sm">Hospital Alerts</h4>
+                      {notifications.filter(n => !n.is_read).length > 0 && (
+                        <span className="text-xs bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full">
+                          {notifications.filter(n => !n.is_read).length} new
+                        </span>
+                      )}
+                    </div>
+                    {notifications.filter(n => !n.is_read).length > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleMarkAllNotificationsRead}
+                        className="text-xs text-teal-600 hover:text-teal-800 font-bold"
+                      >
+                        Mark all as read
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 my-2">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-slate-400 text-xs">
+                        No hospital notifications yet.
+                      </div>
+                    ) : (
+                      notifications.map(n => (
+                        <div
+                          key={n.id}
+                          onClick={() => {
+                            if (!n.is_read) handleMarkSingleNotificationRead(n.id);
+                            if (n.type === 'appointment_request' || n.type === 'reschedule_request') {
+                              setActiveTab('appointments');
+                              setStatusFilter('all');
+                              setNotificationsOpen(false);
+                            } else {
+                              setSelectedNotification(n);
+                              setNotificationsOpen(false);
+                            }
+                          }}
+                          className={`py-3 px-2 rounded-xl flex gap-3 text-left transition-colors cursor-pointer hover:bg-slate-50 ${!n.is_read ? 'bg-amber-50/60 font-medium' : ''}`}
+                        >
+                          <div className="mt-0.5 shrink-0">
+                            {n.type === 'appointment_request' ? (
+                              <Clock className="w-4 h-4 text-amber-500" />
+                            ) : n.type === 'reschedule_request' ? (
+                              <RotateCcw className="w-4 h-4 text-indigo-500" />
+                            ) : n.type === 'appointment_cancelled' ? (
+                              <XCircle className="w-4 h-4 text-rose-500" />
+                            ) : (
+                              <MessageSquare className="w-4 h-4 text-teal-600" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <p className="text-xs font-bold text-slate-900 truncate">{n.title}</p>
+                              {!n.is_read && (
+                                <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{n.message}</p>
+                            <span className="text-[10px] text-slate-400 mt-1 block">
+                              {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={loadAllAdminData}
-              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors shadow-xs"
             >
               Refresh Data
             </button>
@@ -275,9 +566,9 @@ export const AdminDashboard: React.FC = () => {
             <p className="text-2xl font-black text-teal-700 mt-1">{todayAppointments.length}</p>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
-            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Active Doctors</span>
-            <p className="text-2xl font-black text-slate-900 mt-1">{activeDoctors.length}</p>
+          <div className="bg-white p-4 rounded-2xl border border-teal-200 shadow-xs bg-teal-50/20">
+            <span className="text-[11px] font-bold text-teal-700 uppercase tracking-wider">Diagnostic Tests</span>
+            <p className="text-2xl font-black text-teal-700 mt-1">{labTests.length}</p>
           </div>
 
           <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
@@ -312,6 +603,19 @@ export const AdminDashboard: React.FC = () => {
           >
             <Stethoscope className="w-4 h-4" />
             <span>Doctors & OPD Rosters</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('laboratory')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shrink-0 ${
+              activeTab === 'laboratory'
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+            }`}
+          >
+            <Microscope className="w-4 h-4" />
+            <span>Laboratory & Diagnostics ({labTests.length})</span>
           </button>
 
           <button
@@ -452,12 +756,26 @@ export const AdminDashboard: React.FC = () => {
                         {/* Action Buttons */}
                         <td className="py-3 px-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* WhatsApp Notification Action */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const type = apt.status === 'Rejected' ? 'Rejected' : 'Approved';
+                                openWhatsAppForAppointment(apt, type, apt.rejection_reason);
+                              }}
+                              title="Send WhatsApp notification"
+                              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center gap-1 transition-colors"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>WhatsApp</span>
+                            </button>
+
                             {/* Pending State Actions */}
                             {apt.status === 'Pending' && (
                               <>
                                 <button
                                   type="button"
-                                  onClick={() => handleApproveAppointment(apt.id)}
+                                  onClick={() => handleApproveAppointment(apt)}
                                   className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700"
                                 >
                                   Approve
@@ -531,6 +849,7 @@ export const AdminDashboard: React.FC = () => {
                   setDoctorForm({
                     name: '',
                     speciality_id: specialities[0]?.id || '',
+                    speciality_name: specialities[0]?.name || 'General Medicine',
                     qualifications: 'MBBS, MD',
                     experience_years: 5,
                     bio: '',
@@ -621,17 +940,29 @@ export const AdminDashboard: React.FC = () => {
                       </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingDoctor(doc);
-                        setDoctorForm(doc);
-                        setIsAddDoctorModalOpen(true);
-                      }}
-                      className="px-3 py-1 rounded-lg text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100"
-                    >
-                      Edit Profile
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDoctor(doc);
+                          setDoctorForm(doc);
+                          setDoctorImageSourceTab(doc.photo_url?.startsWith('data:') ? 'pc' : 'url');
+                          setIsAddDoctorModalOpen(true);
+                        }}
+                        className="px-2.5 py-1 rounded-lg text-xs font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 transition-colors"
+                      >
+                        Edit Profile
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDoctorToDelete(doc)}
+                        className="px-2 py-1 rounded-lg text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 transition-colors flex items-center gap-1"
+                        title="Delete Doctor from hospital roster"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -744,6 +1075,17 @@ export const AdminDashboard: React.FC = () => {
         )}
 
         {/* =========================================================================
+            SECTION: LABORATORY & DIAGNOSTICS MANAGEMENT
+            ========================================================================= */}
+        {activeTab === 'laboratory' && (
+          <AdminLaboratoryTab
+            labTests={labTests}
+            labSettings={labSettings}
+            onRefresh={loadAllAdminData}
+          />
+        )}
+
+        {/* =========================================================================
             SECTION D: HOSPITAL SETTINGS
             ========================================================================= */}
         {activeTab === 'settings' && settings && (
@@ -796,6 +1138,16 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
+                <label className="block font-semibold text-slate-700 mb-1">Official Hospital Inquiries Email</label>
+                <input
+                  type="email"
+                  value={settings.email || ''}
+                  onChange={(e) => setSettings({ ...settings, email: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                />
+              </div>
+
+              <div>
                 <label className="block font-semibold text-slate-700 mb-1">Operating Hours Notice</label>
                 <input
                   type="text"
@@ -837,6 +1189,36 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">City</label>
+                  <input
+                    type="text"
+                    value={settings.city || ''}
+                    onChange={(e) => setSettings({ ...settings, city: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">State</label>
+                  <input
+                    type="text"
+                    value={settings.state || ''}
+                    onChange={(e) => setSettings({ ...settings, state: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Pincode</label>
+                  <input
+                    type="text"
+                    value={settings.pincode || ''}
+                    onChange={(e) => setSettings({ ...settings, pincode: e.target.value })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  />
+                </div>
+              </div>
+
               <div className="pt-2">
                 <button
                   type="submit"
@@ -847,6 +1229,88 @@ export const AdminDashboard: React.FC = () => {
                 </button>
               </div>
             </form>
+
+            {/* Administrator Password & Security Section */}
+            <div className="mt-8 pt-8 border-t border-slate-200">
+              <div className="flex items-center gap-2.5 mb-2">
+                <div className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-slate-900">
+                    Administrator Security & Password
+                  </h4>
+                  <p className="text-[11px] text-slate-500">
+                    Set a new password for your administrator account in the local MySQL database.
+                  </p>
+                </div>
+              </div>
+
+              {passwordChangeSuccess && (
+                <div className="my-3 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{passwordChangeSuccess}</span>
+                </div>
+              )}
+
+              {passwordChangeError && (
+                <div className="my-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{passwordChangeError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleChangeAdminPassword} className="mt-4 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      New Admin Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        placeholder="••••••••••••"
+                        value={newAdminPassword}
+                        onChange={(e) => setNewAdminPassword(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      Confirm New Password *
+                    </label>
+                    <div className="relative">
+                      <Lock className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        placeholder="••••••••••••"
+                        value={confirmAdminPassword}
+                        onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                        className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-1">
+                  <button
+                    type="submit"
+                    disabled={passwordChangeLoading}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 text-white shadow-md active:scale-95 disabled:opacity-60 transition-all cursor-pointer"
+                  >
+                    <KeyRound className="w-3.5 h-3.5 text-teal-400" />
+                    <span>{passwordChangeLoading ? 'Updating Password...' : 'Save New Admin Password'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         )}
 
@@ -871,6 +1335,11 @@ export const AdminDashboard: React.FC = () => {
                 placeholder="e.g. Doctor is called for emergency OT surgery..."
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-rose-500 focus:outline-hidden resize-none"
               />
+
+              <div className="mt-3 bg-emerald-50 border border-emerald-200/60 rounded-xl p-2.5 flex items-center gap-2 text-xs text-emerald-800">
+                <MessageSquare className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>WhatsApp Click-to-Chat with this rejection notice will open for you to send to the patient.</span>
+              </div>
 
               <div className="mt-4 flex items-center justify-end gap-2">
                 <button
@@ -1014,14 +1483,94 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Photo Image URL</label>
-                  <input
-                    type="url"
-                    value={doctorForm.photo_url || ''}
-                    onChange={(e) => setDoctorForm({ ...doctorForm, photo_url: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
-                  />
+                {/* Doctor Photo: Option 1 (URL) & Option 2 (Upload from PC) */}
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/90 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block font-bold text-slate-800 text-xs">Doctor Profile Photo</label>
+                    <div className="flex items-center bg-slate-200/70 p-0.5 rounded-lg text-[11px] font-semibold">
+                      <button
+                        type="button"
+                        onClick={() => setDoctorImageSourceTab('url')}
+                        className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                          doctorImageSourceTab === 'url'
+                            ? 'bg-white text-teal-800 shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <LinkIcon className="w-3 h-3" />
+                        <span>Web URL</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDoctorImageSourceTab('pc')}
+                        className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1.5 ${
+                          doctorImageSourceTab === 'pc'
+                            ? 'bg-white text-teal-800 shadow-2xs font-bold'
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Upload className="w-3 h-3" />
+                        <span>Upload from PC</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Image Preview Thumbnail */}
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-200 border-2 border-white shadow-xs shrink-0 flex items-center justify-center relative">
+                      {doctorForm.photo_url ? (
+                        <img 
+                          src={doctorForm.photo_url} 
+                          alt="Doctor Preview" 
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            (e.target as any).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600';
+                          }}
+                        />
+                      ) : (
+                        <ImageIcon className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+
+                    <div className="flex-1">
+                      {doctorImageSourceTab === 'url' ? (
+                        <div>
+                          <input
+                            type="url"
+                            placeholder="https://example.com/doctor-photo.jpg"
+                            value={doctorForm.photo_url?.startsWith('data:') ? '' : (doctorForm.photo_url || '')}
+                            onChange={(e) => setDoctorForm({ ...doctorForm, photo_url: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                          />
+                          <p className="text-[10px] text-slate-400 mt-1">Paste a direct image link from the web or hospital CDN.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <label 
+                            htmlFor="doctor-pc-file-upload"
+                            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs cursor-pointer shadow-xs active:scale-95 transition-all"
+                          >
+                            <Upload className="w-3.5 h-3.5" />
+                            <span>{doctorForm.photo_url?.startsWith('data:') ? 'Change Photo from PC' : 'Choose Photo from PC'}</span>
+                          </label>
+                          <input
+                            id="doctor-pc-file-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleDoctorImageFileChange}
+                            className="hidden"
+                          />
+                          {doctorForm.photo_url?.startsWith('data:') ? (
+                            <p className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Photo loaded from your computer
+                            </p>
+                          ) : (
+                            <p className="text-[10px] text-slate-400">Select any image from your computer (.jpg, .png, .webp)</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <div>
@@ -1187,6 +1736,154 @@ export const AdminDashboard: React.FC = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* DOCTOR DELETE CONFIRMATION MODAL */}
+        {doctorToDelete && (
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl border border-rose-100 space-y-4">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              
+              <div className="text-center space-y-1">
+                <h3 className="text-lg font-extrabold text-slate-900">
+                  Delete Doctor Profile?
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Confirm permanent removal of doctor from hospital roster
+                </p>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-left space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900">{doctorToDelete.name}</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 text-teal-800">
+                    {doctorToDelete.speciality_name}
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  {doctorToDelete.qualifications} • {doctorToDelete.experience_years} years exp.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Immediate Patient Panel Impact</span>
+                </p>
+                <p className="text-[11px] leading-relaxed text-rose-700">
+                  Once deleted, this doctor will be immediately removed from the patient portal, Doctor Directory, and appointment scheduling wizard.
+                </p>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  disabled={isDeletingDoctor}
+                  onClick={() => setDoctorToDelete(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingDoctor}
+                  onClick={handleConfirmDeleteDoctor}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md shadow-rose-600/20 active:scale-95 transition-all flex items-center gap-2"
+                >
+                  {isDeletingDoctor ? (
+                    <span>Deleting...</span>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Yes, Delete Doctor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* =========================================================================
+            MODAL: PATIENT QUERY / FEEDBACK NOTIFICATION DETAILS
+            ========================================================================= */}
+        {selectedNotification && (
+          <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative border border-slate-100 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0 border border-teal-200/60">
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-teal-600 uppercase tracking-wider block">
+                      Patient Assistance Notification
+                    </span>
+                    <h4 className="font-extrabold text-sm text-slate-900">
+                      {selectedNotification.title}
+                    </h4>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNotification(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 whitespace-pre-line leading-relaxed font-normal">
+                {selectedNotification.message}
+              </div>
+
+              <div className="mt-3 flex items-center justify-between text-[11px] text-slate-400">
+                <span>Received: {new Date(selectedNotification.created_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                <span className="font-semibold text-teal-700">Shri Gajanan Hospital Desk</span>
+              </div>
+
+              {/* Action buttons (Reply on WhatsApp, Call, Close) */}
+              <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+                {(() => {
+                  const phoneMatch = selectedNotification.message.match(/(?:\+91[\s-]?)?[6-9]\d{9}/);
+                  const phone = phoneMatch ? phoneMatch[0].replace(/\D/g, '').slice(-10) : null;
+                  if (phone) {
+                    return (
+                      <>
+                        <a
+                          href={`https://wa.me/91${phone}?text=${encodeURIComponent(`Dear Patient, thank you for reaching out to Shri Gajanan Hospital regarding your query. How may we assist you today?`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 text-white hover:bg-emerald-700 flex items-center gap-1.5 shadow-xs"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                          <span>Reply on WhatsApp</span>
+                        </a>
+                        <a
+                          href={`tel:+91${phone}`}
+                          className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Call</span>
+                        </a>
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedNotification(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 text-slate-700 hover:bg-slate-50"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         )}

@@ -33,6 +33,10 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
 
   // Filter doctors
   const filteredDoctors = doctors.filter((doc) => {
+    // Exclude deleted or inactive doctors
+    if (doc.is_active === false) {
+      return false;
+    }
     // Speciality match
     if (activeSpeciality !== 'all' && doc.speciality_id !== activeSpeciality) {
       return false;
@@ -177,22 +181,40 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
                       {/* Doctor Photo */}
                       <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100">
                         <img
-                          src={doc.photo_url}
+                          src={doc.photo_url || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600'}
                           alt={doc.name}
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600';
+                          }}
                           className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-300"
                         />
                       </div>
 
                       {/* Basic details */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] font-bold text-teal-600 uppercase tracking-wide">
+                        <div className="flex items-center justify-between gap-1">
+                          <span className="text-[11px] font-bold text-teal-600 uppercase tracking-wide truncate">
                             {doc.speciality_name}
                           </span>
-                          <span className="flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                            <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                            {doc.rating || 4.9}
-                          </span>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {isAvailable ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                Available
+                              </span>
+                            ) : doc.availability_status === 'On Leave' ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+                                On Leave
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                                {doc.availability_status}
+                              </span>
+                            )}
+                            <span className="flex items-center gap-1 text-[11px] font-bold text-slate-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              {doc.rating || 4.9}
+                            </span>
+                          </div>
                         </div>
 
                         <h3 className="text-base font-extrabold text-slate-900 mt-1 truncate">
@@ -279,8 +301,11 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
 
               <div className="flex items-start gap-4 mb-6">
                 <img
-                  src={selectedDoctorForModal.photo_url}
+                  src={selectedDoctorForModal.photo_url || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600'}
                   alt={selectedDoctorForModal.name}
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600';
+                  }}
                   className="w-20 h-20 rounded-2xl object-cover object-top border-2 border-teal-500 shadow-md"
                 />
                 <div>
@@ -297,10 +322,22 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
                     <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">
                       {selectedDoctorForModal.experience_years} Years Experience
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      {selectedDoctorForModal.availability_status}
-                    </span>
+                    {selectedDoctorForModal.availability_status === 'Available' ? (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                        Available
+                      </span>
+                    ) : selectedDoctorForModal.availability_status === 'On Leave' ? (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-600" />
+                        On Leave
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3 text-slate-500" />
+                        {selectedDoctorForModal.availability_status}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -359,9 +396,15 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
                     setSelectedDoctorForModal(null);
                     onSelectDoctorForBooking(doc);
                   }}
-                  className="flex-1 py-3 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 active:scale-95 transition-all"
+                  className={`flex-1 py-3 rounded-xl font-bold text-xs transition-all ${
+                    selectedDoctorForModal.availability_status === 'Available'
+                      ? 'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 active:scale-95'
+                      : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  }`}
                 >
-                  Book with {selectedDoctorForModal.name.split(' ')[1] || 'Doctor'}
+                  {selectedDoctorForModal.availability_status === 'Available'
+                    ? `Book with ${selectedDoctorForModal.name.split(' ')[1] || 'Doctor'}`
+                    : 'Doctor Currently On Leave'}
                 </button>
               </div>
             </div>

@@ -23,6 +23,7 @@ export interface UserProfile {
   address?: string;
   role: Role;
   created_at?: string;
+  is_admin_verified?: boolean;
 }
 
 export interface Speciality {
@@ -124,7 +125,7 @@ export interface HealthScheme {
 
 export interface Notification {
   id: string;
-  user_id: string;
+  user_id?: string | null;
   title: string;
   message: string;
   type: 
@@ -158,3 +159,35 @@ export interface HospitalSettings {
   allow_patient_reschedule: boolean;
   default_appointment_status: AppointmentStatus;
 }
+
+export interface LaboratoryTest {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  description: string;
+  sample_type?: string | null;
+  preparation_instructions?: string | null;
+  fasting_required: boolean;
+  indicative_price?: number | null;
+  turnaround_time?: string | null;
+  is_available: boolean;
+  is_published: boolean;
+  display_order: number;
+  created_at?: string;
+  updated_at?: string;
+  created_by?: string | null;
+}
+
+export interface LaboratorySettings {
+  id: string;
+  lab_name: string;
+  location: string;
+  operating_hours: string;
+  contact_phone: string;
+  general_description: string;
+  accepts_walkins: boolean;
+  appointment_required: boolean;
+  updated_at?: string;
+}
+

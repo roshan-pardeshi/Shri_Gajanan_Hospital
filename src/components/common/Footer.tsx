@@ -10,12 +10,15 @@ import {
   ChevronRight
 } from 'lucide-react';
 
+import { HospitalSettings } from '../../types';
+
 interface FooterProps {
   onNavigate: (tab: string) => void;
   onOpenBooking: () => void;
+  settings?: HospitalSettings | null;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, settings }) => {
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-8 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -33,7 +36,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
               </div>
               <div>
                 <h3 className="font-extrabold text-white text-lg tracking-tight">SmartCare Hospital Portal</h3>
-                <p className="text-xs text-teal-400 font-medium">Shri Gajanan Multispeciality Hospital</p>
+                <p className="text-xs text-teal-400 font-medium">{settings?.hospital_name || 'Shri Gajanan Multispeciality Hospital'}</p>
               </div>
             </div>
 
@@ -90,6 +93,16 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
               <li>
                 <button 
                   type="button" 
+                  onClick={() => onNavigate('laboratory')} 
+                  className="hover:text-teal-400 flex items-center gap-1 transition-colors"
+                >
+                  <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
+                  <span>Laboratory & Tests</span>
+                </button>
+              </li>
+              <li>
+                <button 
+                  type="button" 
                   onClick={() => onNavigate('schemes')} 
                   className="hover:text-teal-400 flex items-center gap-1 transition-colors"
                 >
@@ -121,6 +134,7 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
               <li>Paediatrics & Neonatal ICU</li>
               <li>Medical Oncology</li>
               <li>Nephrology & 24/7 Dialysis</li>
+              <li>Diagnostic Pathology Laboratory</li>
             </ul>
           </div>
 
@@ -131,25 +145,26 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
                 <span className="text-slate-400 text-xs leading-relaxed">
-                  Plot No. 42, Station Road, Near Gajanan Maharaj Mandir, Borivali West, Mumbai, Maharashtra 400092
+                  {settings?.address || 'Plot No. 42, Station Road, Near Gajanan Maharaj Mandir, Borivali West'}
+                  {settings?.city && !settings.address?.includes('Mumbai') ? `, ${settings.city}, ${settings.state || ''} ${settings.pincode || ''}` : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Phone className="w-4 h-4 text-rose-400 shrink-0" />
-                <a href="tel:+912228459999" className="text-rose-400 hover:text-rose-300 font-bold text-xs">
-                  24/7 Emergency: +91 22 2845 9999
+                <a href={`tel:${settings?.emergency_helpline || '+91 22 2845 9999'}`} className="text-rose-400 hover:text-rose-300 font-bold text-xs">
+                  24/7 Emergency: {settings?.emergency_helpline || '+91 22 2845 9999'}
                 </a>
               </div>
               <div className="flex items-center gap-2.5">
                 <Clock className="w-4 h-4 text-teal-400 shrink-0" />
                 <span className="text-slate-400 text-xs">
-                  OPD: Mon - Sat 08:00 AM - 08:00 PM
+                  {settings?.operating_hours ? (settings.operating_hours.includes('OPD') ? settings.operating_hours : `OPD: ${settings.operating_hours}`) : 'OPD: Mon - Sat 08:00 AM - 08:00 PM'}
                 </span>
               </div>
               <div className="flex items-center gap-2.5">
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <a href="mailto:appointments@smartcarehospital.org" className="text-slate-400 hover:text-teal-300 text-xs">
-                  contact@smartcarehospital.org
+                <a href={`mailto:${settings?.email || 'contact@smartcarehospital.org'}`} className="text-slate-400 hover:text-teal-300 text-xs">
+                  {settings?.email || 'contact@smartcarehospital.org'}
                 </a>
               </div>
             </div>
@@ -171,6 +186,13 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking }) => 
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
           <p>© {new Date().getFullYear()} SmartCare Hospital Portal - Shri Gajanan Multispeciality Hospital. All rights reserved.</p>
           <div className="flex items-center gap-6">
+            <button
+              type="button"
+              onClick={() => onNavigate('admin-login')}
+              className="text-slate-400 hover:text-teal-400 transition-colors font-medium flex items-center gap-1"
+            >
+              <span>Admin Access</span>
+            </button>
             <span className="hover:text-slate-400 cursor-pointer">Privacy Policy</span>
             <span className="hover:text-slate-400 cursor-pointer">Patient Rights Charter</span>
             <span className="hover:text-slate-400 cursor-pointer">Terms of Service</span>

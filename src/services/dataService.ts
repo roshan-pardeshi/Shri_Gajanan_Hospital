@@ -1,12 +1,12 @@
 import { 
   Appointment, 
-  AppointmentStatus, 
   Doctor, 
   HealthScheme, 
   HospitalSettings, 
   Notification, 
   Speciality, 
-  UserProfile 
+  LaboratoryTest,
+  LaboratorySettings
 } from '../types';
 import { 
   INITIAL_APPOINTMENTS, 
@@ -14,586 +14,441 @@ import {
   INITIAL_HEALTH_SCHEMES, 
   INITIAL_HOSPITAL_SETTINGS, 
   INITIAL_NOTIFICATIONS, 
-  INITIAL_SPECIALITIES 
+  INITIAL_SPECIALITIES,
+  INITIAL_LABORATORY_TESTS,
+  INITIAL_LABORATORY_SETTINGS
 } from './mockData';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { api } from './apiClient';
 
-const STORAGE_KEYS = {
-  SPECIALITIES: 'sgh_specialities',
-  DOCTORS: 'sgh_doctors',
-  SCHEMES: 'sgh_schemes',
-  APPOINTMENTS: 'sgh_appointments',
-  SETTINGS: 'sgh_settings',
-  NOTIFICATIONS: 'sgh_notifications',
-  PROFILES: 'sgh_profiles',
+// Helper to check valid UUID v4
+export const isUUID = (str?: string | null): boolean => {
+  if (!str) return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
 };
 
-// Safe LocalStorage helpers with automatic seed fallback
-function loadFromStorage<T>(key: string, defaultData: T): T {
-  try {
-    const item = localStorage.getItem(key);
-    if (!item) {
-      localStorage.setItem(key, JSON.stringify(defaultData));
-      return defaultData;
-    }
-    return JSON.parse(item);
-  } catch (err) {
-    console.error(`Failed to load ${key} from storage:`, err);
-    return defaultData;
-  }
-}
-
-function saveToStorage<T>(key: string, data: T): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (err) {
-    console.error(`Failed to save ${key} to storage:`, err);
-  }
-}
-
-// Data Service Singleton
+// Data Service Singleton connecting directly to MySQL Backend API
 export const dataService = {
   // -------------------------------------------------------------
   // Specialities
   // -------------------------------------------------------------
   async getSpecialities(): Promise<Speciality[]> {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase
-        .from('specialities')
-        .select('*')
-        .eq('is_active', true)
-        .order('name');
-      if (!error && data && data.length > 0) return data as Speciality[];
+    try {
+      const data = await api.get<Speciality[]>('/specialities');
+      if (data && data.length > 0) return data;
+    } catch (err) {
+      console.warn('API getSpecialities fallback:', err);
     }
-    return loadFromStorage<Speciality[]>(STORAGE_KEYS.SPECIALITIES, INITIAL_SPECIALITIES);
+    return INITIAL_SPECIALITIES;
   },
 
   // -------------------------------------------------------------
   // Doctors
   // -------------------------------------------------------------
   async getDoctors(specialityId?: string, query?: string): Promise<Doctor[]> {
-    let list: Doctor[] = [];
-    if (isSupabaseConfigured() && supabase) {
-      let q = supabase.from('doctors').select('*, specialities(name)').eq('is_active', true);
-      if (specialityId) q = q.eq('speciality_id', specialityId);
-      const { data, error } = await q;
-      if (!error && data && data.length > 0) {
-        list = data.map((d: any) => ({
-          ...d,
-          speciality_name: d.specialities?.name || d.speciality_name
-        }));
-      }
+    try {
+      const params = new URLSearchParams();
+      if (specialityId) params.append('specialityId', specialityId);
+      if (query) params.append('query', query);
+
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const data = await api.get<Doctor[]>(`/doctors${queryString}`);
+      if (data) return data;
+    } catch (err) {
+      console.warn('API getDoctors fallback:', err);
     }
 
-    if (list.length === 0) {
-      list = loadFromStorage<Doctor[]>(STORAGE_KEYS.DOCTORS, INITIAL_DOCTORS);
-    }
-
+    let filtered = INITIAL_DOCTORS;
     if (specialityId) {
-      list = list.filter(d => d.speciality_id === specialityId);
+      filtered = filtered.filter(d => d.speciality_id === specialityId);
     }
-
-    if (query && query.trim() !== '') {
-      const qLower = query.toLowerCase();
-      list = list.filter(d => 
-        d.name.toLowerCase().includes(qLower) || 
-        d.speciality_name?.toLowerCase().includes(qLower) ||
-        d.qualifications.toLowerCase().includes(qLower)
+    if (query) {
+      const q = query.toLowerCase();
+      filtered = filtered.filter(d => 
+        d.name.toLowerCase().includes(q) || 
+        d.qualifications.toLowerCase().includes(q) ||
+        (d.speciality_name && d.speciality_name.toLowerCase().includes(q))
       );
     }
-
-    return list;
+    return filtered;
   },
 
   async getDoctorById(id: string): Promise<Doctor | null> {
-    const doctors = await this.getDoctors();
-    return doctors.find(d => d.id === id) || null;
+    try {
+      const doc = await api.get<Doctor>(`/doctors/${id}`);
+      if (doc) return doc;
+    } catch (err) {
+      console.warn('API getDoctorById fallback:', err);
+    }
+    return INITIAL_DOCTORS.find(d => d.id === id) || null;
+  },
+
+  async deleteDoctor(id: string): Promise<boolean> {
+    try {
+      await api.delete(`/doctors/${id}`);
+      return true;
+    } catch (err: any) {
+      console.error('API deleteDoctor error:', err);
+      throw new Error(err.message || 'Failed to delete doctor');
+    }
   },
 
   async updateDoctor(id: string, updates: Partial<Doctor>): Promise<Doctor> {
-    const doctors = loadFromStorage<Doctor[]>(STORAGE_KEYS.DOCTORS, INITIAL_DOCTORS);
-    const index = doctors.findIndex(d => d.id === id);
-    if (index === -1) throw new Error('Doctor not found');
-
-    doctors[index] = { ...doctors[index], ...updates };
-    saveToStorage(STORAGE_KEYS.DOCTORS, doctors);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('doctors').update(updates).eq('id', id);
+    try {
+      const updated = await api.put<Doctor>(`/doctors/${id}`, updates);
+      return updated;
+    } catch (err: any) {
+      console.error('API updateDoctor error:', err);
+      throw new Error(err.message || 'Failed to update doctor');
     }
-
-    return doctors[index];
   },
 
   async addDoctor(newDoctor: Omit<Doctor, 'id'>): Promise<Doctor> {
-    const doctors = loadFromStorage<Doctor[]>(STORAGE_KEYS.DOCTORS, INITIAL_DOCTORS);
-    const doctor: Doctor = {
-      ...newDoctor,
-      id: `doc-${Date.now()}`
-    };
-    doctors.push(doctor);
-    saveToStorage(STORAGE_KEYS.DOCTORS, doctors);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('doctors').insert([doctor]);
+    try {
+      const created = await api.post<Doctor>('/doctors', newDoctor);
+      return created;
+    } catch (err: any) {
+      console.error('API addDoctor error:', err);
+      throw new Error(err.message || 'Failed to add doctor');
     }
-
-    return doctor;
   },
 
-  // -------------------------------------------------------------
-  // Slot Computation & Conflict Validation
-  // -------------------------------------------------------------
   async getAvailableSlots(doctorId: string, dateStr: string): Promise<{ time: string; isBooked: boolean; isPast: boolean }[]> {
-    const doctor = await this.getDoctorById(doctorId);
-    if (!doctor) return [];
-
-    const selectedDate = new Date(dateStr + 'T00:00:00');
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const selectedDayName = dayNames[selectedDate.getDay()];
-
-    // If doctor does not work on this day
-    if (!doctor.working_days.includes(selectedDayName)) {
-      return [];
+    try {
+      const res = await api.get<{ onLeave: boolean; slots: { time: string; isBooked: boolean; isPast: boolean }[] }>(
+        `/doctors/${doctorId}/slots?date=${dateStr}`
+      );
+      if (res && Array.isArray(res.slots)) {
+        return res.slots;
+      }
+    } catch (err) {
+      console.warn('API getAvailableSlots fallback:', err);
     }
 
-    // If doctor is on leave on this date
-    if (doctor.leave_dates && doctor.leave_dates.includes(dateStr)) {
-      return [];
-    }
-
-    if (doctor.availability_status === 'On Leave' || doctor.availability_status === 'Not Available') {
-      return [];
-    }
-
-    // Get all active appointments for this doctor on this date
-    const allAppointments = await this.getAppointments();
-    const bookedAppointments = allAppointments.filter(a => 
-      a.doctor_id === doctorId && 
-      (a.appointment_date === dateStr || a.requested_reschedule_date === dateStr) &&
-      !['Cancelled', 'Rejected'].includes(a.status)
-    );
-
-    const bookedTimes = new Set(bookedAppointments.map(a => 
-      a.requested_reschedule_date === dateStr && a.requested_reschedule_time 
-        ? a.requested_reschedule_time 
-        : a.start_time
-    ));
-
-    // Generate slots in working hours
-    const [startH, startM] = doctor.working_hours_start.split(':').map(Number);
-    const [endH, endM] = doctor.working_hours_end.split(':').map(Number);
-    const duration = doctor.slot_duration_minutes || 30;
-
-    const startTotal = startH * 60 + startM;
-    const endTotal = endH * 60 + endM;
-
-    const slots: { time: string; isBooked: boolean; isPast: boolean }[] = [];
-    const now = new Date();
-    const isToday = now.toISOString().split('T')[0] === dateStr;
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    for (let m = startTotal; m + duration <= endTotal; m += duration) {
-      const h = Math.floor(m / 60);
-      const min = m % 60;
-      const timeStr = `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
-      const isPast = isToday && m <= currentMinutes;
-      const isBooked = bookedTimes.has(timeStr);
-
-      slots.push({
-        time: timeStr,
-        isBooked,
-        isPast,
-      });
-    }
-
-    return slots;
+    // Default fallback OPD slots
+    const defaultTimes = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '14:00', '14:30', '15:00', '15:30', '16:00'];
+    return defaultTimes.map(time => ({
+      time,
+      isBooked: false,
+      isPast: false,
+    }));
   },
 
   // -------------------------------------------------------------
-  // Appointments Management
+  // Appointments
   // -------------------------------------------------------------
   async getAppointments(filters?: { patientId?: string; doctorId?: string; status?: string }): Promise<Appointment[]> {
-    let list: Appointment[] = [];
-    if (isSupabaseConfigured() && supabase) {
-      let q = supabase.from('appointments').select('*').order('created_at', { ascending: false });
-      if (filters?.patientId) q = q.eq('patient_id', filters.patientId);
-      if (filters?.doctorId) q = q.eq('doctor_id', filters.doctorId);
-      if (filters?.status) q = q.eq('status', filters.status);
-      const { data, error } = await q;
-      if (!error && data) list = data as Appointment[];
-    }
+    try {
+      const params = new URLSearchParams();
+      if (filters?.patientId) params.append('patientId', filters.patientId);
+      if (filters?.doctorId) params.append('doctorId', filters.doctorId);
+      if (filters?.status) params.append('status', filters.status);
 
-    if (list.length === 0) {
-      list = loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
+      const queryString = params.toString() ? `?${params.toString()}` : '';
+      const appointments = await api.get<Appointment[]>(`/appointments${queryString}`);
+      if (appointments) return appointments;
+    } catch (err) {
+      console.warn('API getAppointments fallback:', err);
     }
+    return INITIAL_APPOINTMENTS;
+  },
 
-    if (filters?.patientId) {
-      list = list.filter(a => a.patient_id === filters.patientId);
+  async getAppointmentById(appointmentId: string): Promise<Appointment | null> {
+    try {
+      const apt = await api.get<Appointment>(`/appointments/${appointmentId}`);
+      if (apt) return apt;
+    } catch (err) {
+      console.warn('API getAppointmentById fallback:', err);
     }
-    if (filters?.doctorId) {
-      list = list.filter(a => a.doctor_id === filters.doctorId);
-    }
-    if (filters?.status && filters.status !== 'All') {
-      list = list.filter(a => a.status === filters.status);
-    }
-
-    return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return INITIAL_APPOINTMENTS.find(a => a.id === appointmentId) || null;
   },
 
   async bookAppointment(params: {
-    patient_id: string;
-    patient_name: string;
-    patient_phone: string;
-    patient_email?: string;
-    doctor_id: string;
-    speciality_id: string;
-    appointment_date: string;
-    start_time: string;
-    reason_for_visit: string;
+    doctorId?: string;
+    doctor_id?: string;
+    specialityId?: string;
+    speciality_id?: string;
+    appointmentDate?: string;
+    appointment_date?: string;
+    startTime?: string;
+    start_time?: string;
+    endTime?: string;
+    end_time?: string;
+    reasonForVisit?: string;
+    reason_for_visit?: string;
+    visitType?: 'first_visit' | 'follow_up';
     visit_type?: 'first_visit' | 'follow_up';
+    patientId?: string | null;
+    patient_id?: string | null;
+    patientName?: string;
+    patient_name?: string;
+    patientPhone?: string;
+    patient_phone?: string;
+    patientEmail?: string;
+    patient_email?: string;
   }): Promise<Appointment> {
-    const doctor = await this.getDoctorById(params.doctor_id);
-    const specialities = await this.getSpecialities();
-    const speciality = specialities.find(s => s.id === params.speciality_id);
+    try {
+      const payload = {
+        doctor_id: params.doctor_id || params.doctorId,
+        speciality_id: params.speciality_id || params.specialityId,
+        appointment_date: params.appointment_date || params.appointmentDate,
+        start_time: params.start_time || params.startTime,
+        end_time: params.end_time || params.endTime || '10:00',
+        reason_for_visit: params.reason_for_visit || params.reasonForVisit,
+        visit_type: params.visit_type || params.visitType || 'first_visit',
+        patient_id: params.patient_id !== undefined ? params.patient_id : params.patientId,
+        patient_name: params.patient_name || params.patientName,
+        patient_phone: params.patient_phone || params.patientPhone,
+        patient_email: params.patient_email || params.patientEmail,
+      };
 
-    // Compute end_time based on doctor's slot duration
-    const [h, m] = params.start_time.split(':').map(Number);
-    const duration = doctor?.slot_duration_minutes || 30;
-    const endTotal = h * 60 + m + duration;
-    const endH = Math.floor(endTotal / 60);
-    const endMin = endTotal % 60;
-    const end_time = `${String(endH).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
-
-    // Conflict prevention check
-    const currentAppointments = await this.getAppointments();
-    const conflict = currentAppointments.find(a => 
-      a.doctor_id === params.doctor_id &&
-      a.appointment_date === params.appointment_date &&
-      a.start_time === params.start_time &&
-      !['Rejected', 'Cancelled'].includes(a.status)
-    );
-
-    if (conflict) {
-      throw new Error(`This slot (${params.start_time} on ${params.appointment_date}) has just been booked. Please choose an alternate slot.`);
+      const result = await api.post<Appointment>('/appointments/book', payload);
+      return result;
+    } catch (err: any) {
+      console.error('API bookAppointment error:', err);
+      throw new Error(err.message || 'Failed to book appointment in MySQL database.');
     }
-
-    // Generate unique reference number: SGH-YYYYMM-XXXX
-    const now = new Date();
-    const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const rand = Math.floor(1000 + Math.random() * 9000);
-    const reference_number = `SGH-${ym}-${rand}`;
-
-    const newAppointment: Appointment = {
-      id: `apt-${Date.now()}`,
-      reference_number,
-      patient_id: params.patient_id,
-      patient_name: params.patient_name,
-      patient_phone: params.patient_phone,
-      patient_email: params.patient_email,
-      doctor_id: params.doctor_id,
-      doctor_name: doctor?.name,
-      doctor_photo: doctor?.photo_url,
-      speciality_id: params.speciality_id,
-      speciality_name: speciality?.name,
-      appointment_date: params.appointment_date,
-      start_time: params.start_time,
-      end_time,
-      reason_for_visit: params.reason_for_visit,
-      visit_type: params.visit_type || 'first_visit',
-      status: 'Pending',
-      created_at: now.toISOString(),
-      updated_at: now.toISOString(),
-    };
-
-    const appointments = loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
-    appointments.unshift(newAppointment);
-    saveToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
-
-    // Create notification
-    await this.createNotification({
-      user_id: params.patient_id,
-      title: 'Appointment Request Submitted',
-      message: `Your appointment request ${reference_number} with ${doctor?.name || 'Doctor'} has been submitted and is pending verification.`,
-      type: 'appointment_request',
-      reference_id: newAppointment.id,
-    });
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('appointments').insert([newAppointment]);
-    }
-
-    return newAppointment;
   },
 
   async rescheduleAppointment(
-    appointmentId: string, 
-    newDate: string, 
-    newTime: string, 
+    appointmentId: string,
+    newDate: string,
+    newTime: string,
     reason: string
   ): Promise<Appointment> {
-    const appointments = loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
-    const index = appointments.findIndex(a => a.id === appointmentId);
-    if (index === -1) throw new Error('Appointment not found');
-
-    const appointment = appointments[index];
-
-    // Check slot availability for new date & time
-    const conflict = appointments.find(a => 
-      a.id !== appointmentId &&
-      a.doctor_id === appointment.doctor_id &&
-      (a.appointment_date === newDate || a.requested_reschedule_date === newDate) &&
-      (a.start_time === newTime || a.requested_reschedule_time === newTime) &&
-      !['Rejected', 'Cancelled'].includes(a.status)
-    );
-
-    if (conflict) {
-      throw new Error('Requested new slot is already booked. Please choose an alternate slot.');
+    try {
+      const result = await api.put<Appointment>(`/appointments/${appointmentId}/reschedule`, {
+        newDate,
+        newTime,
+        reason,
+      });
+      return result;
+    } catch (err: any) {
+      console.error('API rescheduleAppointment error:', err);
+      throw new Error(err.message || 'Failed to reschedule appointment');
     }
-
-    const updated: Appointment = {
-      ...appointment,
-      status: 'Reschedule Requested',
-      original_appointment_date: appointment.original_appointment_date || appointment.appointment_date,
-      original_start_time: appointment.original_start_time || appointment.start_time,
-      requested_reschedule_date: newDate,
-      requested_reschedule_time: newTime,
-      reschedule_reason: reason,
-      updated_at: new Date().toISOString(),
-    };
-
-    appointments[index] = updated;
-    saveToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
-
-    await this.createNotification({
-      user_id: appointment.patient_id,
-      title: 'Reschedule Request Received',
-      message: `Your request to reschedule appointment ${appointment.reference_number} to ${newDate} at ${newTime} has been submitted for administrator approval.`,
-      type: 'reschedule_request',
-      reference_id: appointment.id,
-    });
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('appointments').update(updated).eq('id', appointmentId);
-    }
-
-    return updated;
   },
 
   async cancelAppointment(appointmentId: string, reason: string): Promise<Appointment> {
-    const appointments = loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
-    const index = appointments.findIndex(a => a.id === appointmentId);
-    if (index === -1) throw new Error('Appointment not found');
-
-    const appointment = appointments[index];
-    const updated: Appointment = {
-      ...appointment,
-      status: 'Cancelled',
-      cancellation_reason: reason,
-      updated_at: new Date().toISOString(),
-    };
-
-    appointments[index] = updated;
-    saveToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
-
-    await this.createNotification({
-      user_id: appointment.patient_id,
-      title: 'Appointment Cancelled',
-      message: `Your appointment ${appointment.reference_number} has been cancelled. Slot has been released.`,
-      type: 'appointment_cancelled',
-      reference_id: appointment.id,
-    });
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('appointments').update(updated).eq('id', appointmentId);
+    try {
+      const result = await api.put<Appointment>(`/appointments/${appointmentId}/cancel`, {
+        reason,
+      });
+      return result;
+    } catch (err: any) {
+      console.error('API cancelAppointment error:', err);
+      throw new Error(err.message || 'Failed to cancel appointment');
     }
-
-    return updated;
   },
 
   async updateAppointmentStatus(
-    appointmentId: string, 
-    newStatus: AppointmentStatus, 
-    rejectionReason?: string
+    appointmentId: string,
+    status: any,
+    rejectionReason?: string,
+    notes?: string
   ): Promise<Appointment> {
-    const appointments = loadFromStorage<Appointment[]>(STORAGE_KEYS.APPOINTMENTS, INITIAL_APPOINTMENTS);
-    const index = appointments.findIndex(a => a.id === appointmentId);
-    if (index === -1) throw new Error('Appointment not found');
-
-    const appointment = appointments[index];
-    let updated: Appointment = {
-      ...appointment,
-      status: newStatus,
-      updated_at: new Date().toISOString(),
-    };
-
-    if (newStatus === 'Rejected' && rejectionReason) {
-      updated.rejection_reason = rejectionReason;
+    try {
+      const result = await api.put<Appointment>(`/appointments/${appointmentId}/status`, {
+        status,
+        rejection_reason: rejectionReason,
+        notes,
+      });
+      return result;
+    } catch (err: any) {
+      console.error('API updateAppointmentStatus error:', err);
+      throw new Error(err.message || 'Failed to update appointment status');
     }
-
-    // If approving a reschedule request, apply the new date and time
-    if (newStatus === 'Approved' && appointment.status === 'Reschedule Requested' && appointment.requested_reschedule_date) {
-      updated.appointment_date = appointment.requested_reschedule_date;
-      updated.start_time = appointment.requested_reschedule_time || appointment.start_time;
-      updated.status = 'Rescheduled';
-    }
-
-    appointments[index] = updated;
-    saveToStorage(STORAGE_KEYS.APPOINTMENTS, appointments);
-
-    // Notify patient
-    let notifTitle = `Appointment ${newStatus}`;
-    let notifMsg = `Your appointment ${appointment.reference_number} status has been updated to ${newStatus}.`;
-    let notifType: Notification['type'] = 'general';
-
-    if (newStatus === 'Approved' || updated.status === 'Rescheduled') {
-      notifTitle = 'Appointment Confirmed';
-      notifMsg = `Your appointment ${appointment.reference_number} with ${appointment.doctor_name} on ${updated.appointment_date} at ${updated.start_time} has been approved!`;
-      notifType = 'appointment_approved';
-    } else if (newStatus === 'Rejected') {
-      notifTitle = 'Appointment Declined';
-      notifMsg = `Your appointment ${appointment.reference_number} was declined. Reason: ${rejectionReason || 'Doctor unavailable'}.`;
-      notifType = 'appointment_rejected';
-    }
-
-    await this.createNotification({
-      user_id: appointment.patient_id,
-      title: notifTitle,
-      message: notifMsg,
-      type: notifType,
-      reference_id: appointment.id,
-    });
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('appointments').update(updated).eq('id', appointmentId);
-    }
-
-    return updated;
   },
 
   // -------------------------------------------------------------
   // Health Schemes
   // -------------------------------------------------------------
   async getHealthSchemes(): Promise<HealthScheme[]> {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase.from('health_schemes').select('*').order('name');
-      if (!error && data && data.length > 0) return data as HealthScheme[];
+    try {
+      const schemes = await api.get<HealthScheme[]>('/schemes');
+      if (schemes && schemes.length > 0) return schemes;
+    } catch (err) {
+      console.warn('API getHealthSchemes fallback:', err);
     }
-    return loadFromStorage<HealthScheme[]>(STORAGE_KEYS.SCHEMES, INITIAL_HEALTH_SCHEMES);
+    return INITIAL_HEALTH_SCHEMES;
   },
 
   async updateHealthScheme(id: string, updates: Partial<HealthScheme>): Promise<HealthScheme> {
-    const schemes = loadFromStorage<HealthScheme[]>(STORAGE_KEYS.SCHEMES, INITIAL_HEALTH_SCHEMES);
-    const index = schemes.findIndex(s => s.id === id);
-    if (index === -1) throw new Error('Scheme not found');
-
-    schemes[index] = { ...schemes[index], ...updates };
-    saveToStorage(STORAGE_KEYS.SCHEMES, schemes);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('health_schemes').update(updates).eq('id', id);
+    try {
+      const updated = await api.put<HealthScheme>(`/schemes/${id}`, updates);
+      return updated;
+    } catch (err: any) {
+      console.error('API updateHealthScheme error:', err);
+      throw new Error(err.message || 'Failed to update health scheme');
     }
-
-    return schemes[index];
   },
 
   async addHealthScheme(newScheme: Omit<HealthScheme, 'id'>): Promise<HealthScheme> {
-    const schemes = loadFromStorage<HealthScheme[]>(STORAGE_KEYS.SCHEMES, INITIAL_HEALTH_SCHEMES);
-    const scheme: HealthScheme = {
-      ...newScheme,
-      id: `scheme-${Date.now()}`
-    };
-    schemes.push(scheme);
-    saveToStorage(STORAGE_KEYS.SCHEMES, schemes);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('health_schemes').insert([scheme]);
+    try {
+      const created = await api.post<HealthScheme>('/schemes', newScheme);
+      return created;
+    } catch (err: any) {
+      console.error('API addHealthScheme error:', err);
+      throw new Error(err.message || 'Failed to add health scheme');
     }
-
-    return scheme;
   },
 
   // -------------------------------------------------------------
   // Hospital Settings
   // -------------------------------------------------------------
   async getHospitalSettings(): Promise<HospitalSettings> {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase.from('hospital_settings').select('*').limit(1).single();
-      if (!error && data) return data as HospitalSettings;
+    try {
+      const settings = await api.get<HospitalSettings>('/settings');
+      if (settings) return settings;
+    } catch (err) {
+      console.warn('API getHospitalSettings fallback:', err);
     }
-    return loadFromStorage<HospitalSettings>(STORAGE_KEYS.SETTINGS, INITIAL_HOSPITAL_SETTINGS);
+    return INITIAL_HOSPITAL_SETTINGS;
   },
 
   async updateHospitalSettings(updates: Partial<HospitalSettings>): Promise<HospitalSettings> {
-    const current = loadFromStorage<HospitalSettings>(STORAGE_KEYS.SETTINGS, INITIAL_HOSPITAL_SETTINGS);
-    const updated = { ...current, ...updates };
-    saveToStorage(STORAGE_KEYS.SETTINGS, updated);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('hospital_settings').update(updates).eq('id', current.id);
+    try {
+      const updated = await api.put<HospitalSettings>('/settings', updates);
+      return updated;
+    } catch (err: any) {
+      console.error('API updateHospitalSettings error:', err);
+      throw new Error(err.message || 'Failed to update hospital settings');
     }
-
-    return updated;
   },
 
   // -------------------------------------------------------------
   // Notifications
   // -------------------------------------------------------------
-  async getNotifications(userId: string): Promise<Notification[]> {
-    if (isSupabaseConfigured() && supabase) {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-      if (!error && data) return data as Notification[];
+  async getNotifications(userId?: string, isAdmin: boolean = false): Promise<Notification[]> {
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      if (isAdmin) params.append('isAdmin', 'true');
+      const data = await api.get<Notification[]>(`/notifications?${params.toString()}`);
+      if (Array.isArray(data)) return data;
+    } catch (err) {
+      console.warn('API getNotifications fallback:', err);
     }
-    const notifs = loadFromStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
-    return notifs.filter(n => n.user_id === userId || n.user_id === 'all');
+    return INITIAL_NOTIFICATIONS.filter(n => {
+      if (isAdmin) {
+        return !n.user_id || n.user_id === userId || n.user_id === 'admin' || n.type === 'appointment_request' || n.type === 'reschedule_request' || n.type === 'appointment_cancelled' || n.type === 'general';
+      }
+      return !n.user_id || n.user_id === userId;
+    });
   },
 
   async createNotification(notif: Omit<Notification, 'id' | 'is_read' | 'created_at'>): Promise<Notification> {
-    const notifications = loadFromStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
-    const newNotif: Notification = {
-      ...notif,
-      id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-      is_read: false,
-      created_at: new Date().toISOString(),
-    };
-    notifications.unshift(newNotif);
-    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, notifications);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('notifications').insert([newNotif]);
+    try {
+      const created = await api.post<Notification>('/notifications', notif);
+      return created;
+    } catch (err: any) {
+      console.error('API createNotification error:', err);
+      throw new Error(err.message || 'Failed to create notification');
     }
-
-    return newNotif;
   },
 
   async markNotificationRead(id: string): Promise<void> {
-    const notifications = loadFromStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
-    const index = notifications.findIndex(n => n.id === id);
-    if (index !== -1) {
-      notifications[index].is_read = true;
-      saveToStorage(STORAGE_KEYS.NOTIFICATIONS, notifications);
-    }
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    try {
+      await api.put(`/notifications/${id}/read`);
+    } catch (err) {
+      console.warn('API markNotificationRead error:', err);
     }
   },
 
-  async markAllNotificationsRead(userId: string): Promise<void> {
-    const notifications = loadFromStorage<Notification[]>(STORAGE_KEYS.NOTIFICATIONS, INITIAL_NOTIFICATIONS);
-    notifications.forEach(n => {
-      if (n.user_id === userId || n.user_id === 'all') {
-        n.is_read = true;
-      }
-    });
-    saveToStorage(STORAGE_KEYS.NOTIFICATIONS, notifications);
-
-    if (isSupabaseConfigured() && supabase) {
-      await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId);
+  async markAllNotificationsRead(userId?: string, isAdmin: boolean = false): Promise<void> {
+    try {
+      await api.put('/notifications/read-all', { userId, isAdmin });
+    } catch (err) {
+      console.warn('API markAllNotificationsRead error:', err);
     }
-  }
+  },
+
+  // -------------------------------------------------------------
+  // Laboratory Tests & Settings
+  // -------------------------------------------------------------
+  async getLaboratoryTests(options?: { includeDrafts?: boolean; category?: string }): Promise<LaboratoryTest[]> {
+    try {
+      const params = new URLSearchParams();
+      if (options?.includeDrafts) params.append('includeDrafts', 'true');
+      if (options?.category) params.append('category', options.category);
+
+      const qs = params.toString() ? `?${params.toString()}` : '';
+      const tests = await api.get<LaboratoryTest[]>(`/laboratory/tests${qs}`);
+      if (tests) return tests;
+    } catch (err) {
+      console.warn('API getLaboratoryTests fallback:', err);
+    }
+    return INITIAL_LABORATORY_TESTS;
+  },
+
+  async getLaboratoryTestById(id: string): Promise<LaboratoryTest | null> {
+    try {
+      const test = await api.get<LaboratoryTest>(`/laboratory/tests/${id}`);
+      if (test) return test;
+    } catch (err) {
+      console.warn('API getLaboratoryTestById fallback:', err);
+    }
+    return INITIAL_LABORATORY_TESTS.find(t => t.id === id) || null;
+  },
+
+  async addLaboratoryTest(test: Omit<LaboratoryTest, 'id' | 'created_at' | 'updated_at'>): Promise<LaboratoryTest> {
+    try {
+      const created = await api.post<LaboratoryTest>('/laboratory/tests', test);
+      return created;
+    } catch (err: any) {
+      console.error('API addLaboratoryTest error:', err);
+      throw new Error(err.message || 'Failed to add laboratory test');
+    }
+  },
+
+  async updateLaboratoryTest(id: string, updates: Partial<LaboratoryTest>): Promise<LaboratoryTest> {
+    try {
+      const updated = await api.put<LaboratoryTest>(`/laboratory/tests/${id}`, updates);
+      return updated;
+    } catch (err: any) {
+      console.error('API updateLaboratoryTest error:', err);
+      throw new Error(err.message || 'Failed to update laboratory test');
+    }
+  },
+
+  async deleteLaboratoryTest(id: string): Promise<void> {
+    try {
+      await api.delete(`/laboratory/tests/${id}`);
+    } catch (err: any) {
+      console.error('API deleteLaboratoryTest error:', err);
+      throw new Error(err.message || 'Failed to delete laboratory test');
+    }
+  },
+
+  async getLaboratorySettings(): Promise<LaboratorySettings> {
+    try {
+      const settings = await api.get<LaboratorySettings>('/laboratory/settings');
+      if (settings) return settings;
+    } catch (err) {
+      console.warn('API getLaboratorySettings fallback:', err);
+    }
+    return INITIAL_LABORATORY_SETTINGS;
+  },
+
+  async updateLaboratorySettings(settings: Partial<LaboratorySettings>): Promise<LaboratorySettings> {
+    try {
+      const updated = await api.put<LaboratorySettings>('/laboratory/settings', settings);
+      return updated;
+    } catch (err: any) {
+      console.error('API updateLaboratorySettings error:', err);
+      throw new Error(err.message || 'Failed to update laboratory settings');
+    }
+  },
+
+  // -------------------------------------------------------------
+  // Admin Verification
+  // -------------------------------------------------------------
+  async verifyAdminRole(userId: string): Promise<{ isAdmin: boolean; role: string }> {
+    try {
+      const res = await api.get<{ isAdmin: boolean; role: string }>(`/auth/verify-admin/${userId}`);
+      if (res) return res;
+    } catch (err) {
+      console.warn('API verifyAdminRole fallback check:', err);
+    }
+    return { isAdmin: false, role: 'patient' };
+  },
 };

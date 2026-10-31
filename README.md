@@ -60,85 +60,96 @@ SmartCare Hospital Portal is a modern, responsive, full-stack hospital web appli
 - **Frontend**: React 19, TypeScript, Vite.
 - **Styling**: Tailwind CSS with custom healthcare palette (Teal, Sky, Emerald accents).
 - **Icons**: Lucide React.
-- **Database & Backend**: Supabase (PostgreSQL with Row Level Security and conflict-safe transactions).
-- **Architecture**: Dual-mode engine supporting direct Supabase cloud connectivity with graceful, persistent local fallback for offline/demo evaluation.
+- **Backend & API**: Node.js, Express, TypeScript (`tsx`), JWT authentication, bcryptjs password hashing.
+- **Database**: Local MySQL 8.0 with InnoDB transaction safety, foreign key constraints, virtual slot keys, and connection pooling (`mysql2`).
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Getting Started with Local MySQL
 
 ### 1. Prerequisites
 - Node.js (v18 or higher)
-- npm or pnpm
+- Local MySQL Server 8.0 installed and running on port 3306
 
-### 2. Installation
-```bash
-# Clone the repository and navigate into the project directory
-cd Shri_Gajanan_Hospital
+### 2. Configure Environment Variables
+Open or create `.env` in the root folder:
+```env
+# Database Configuration (Local MySQL)
+DB_HOST=localhost
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_mysql_password
+DB_NAME=smart_care_hospital
 
-# Install dependencies
-npm install
+# Server & Auth Configuration
+PORT=5000
+JWT_SECRET=your_secure_jwt_secret_key_here
+
+# Frontend Configuration
+VITE_API_URL=http://localhost:5000/api
 ```
 
-### 3. Running Locally
+### 3. Run Database Migrations & Seeds
+Run the automated migration runner to create the `smart_care_hospital` database, all required tables, constraints, and initial seed data:
 ```bash
-# Start the Vite development server
+npm run migrate
+```
+*(On Windows PowerShell with script restriction: `npm.cmd run migrate`)*
+
+This script automatically verifies:
+- `profiles` & `user_roles` (creates default admin & demo patient)
+- `specialities` (8 medical departments)
+- `doctors` (8 specialist consultants)
+- `health_schemes` (Ayushman Bharat, MJPJAY, CGHS, ESIC, RAN)
+- `laboratory_tests` & `laboratory_settings` (14 accredited diagnostic tests)
+- `hospital_settings` & `notifications`
+
+### 4. Start the Application
+To run both the backend API server (port 5000) and the Vite frontend (port 5173) simultaneously:
+```bash
+npm run dev:all
+```
+Or run them in separate terminals:
+```bash
+# Terminal 1: Backend Express API
+npm run server
+
+# Terminal 2: Frontend Vite
 npm run dev
 ```
+
 Open [http://localhost:5173](http://localhost:5173) in your browser.
 
 ---
 
-## 🗄️ Supabase PostgreSQL Setup & Migrations
+## 🔐 Default Credentials (Pre-seeded in MySQL)
 
-To connect your own Supabase project:
-
-1. Create a project at [supabase.com](https://supabase.com).
-2. Open the **SQL Editor** in your Supabase Dashboard.
-3. Open the migration file located at:
-   `supabase/migrations/20261019_init_hospital.sql`
-4. Copy and execute the SQL script in the Supabase SQL editor. It will:
-   - Create all 11 tables (`profiles`, `user_roles`, `specialities`, `doctors`, `doctor_schedules`, `doctor_leave_dates`, `appointments`, `appointment_history`, `health_schemes`, `notifications`, `hospital_settings`).
-   - Create safe database functions (`book_appointment_safe`) preventing simultaneous double-booking.
-   - Enforce Row Level Security (RLS) policies on all tables.
-5. In your project root, copy `.env.example` to `.env`:
-   ```env
-   VITE_SUPABASE_URL=https://your-project.supabase.co
-   VITE_SUPABASE_ANON_KEY=your-anon-key-here
-   ```
-6. Restart the development server (`npm run dev`). The portal will automatically detect your Supabase credentials and transition to cloud database mode.
+| Account Type | Email | Password | Role |
+| :--- | :--- | :--- | :--- |
+| **Medical Superintendent (Admin)** | `admin@smartcarehospital.org` | `admin123` | `admin` (Strictly verified) |
+| **Demo Patient** | `suresh.patil@example.com` | `patient123` | `patient` |
 
 ---
 
-## 🔐 Creating the First Administrator Account
+## 🚢 Security & Production Deployment Guide
 
-1. In Supabase Dashboard, go to **Authentication** -> **Users** -> **Add User** and create an administrator user with email `admin@smartcarehospital.org`.
-2. In the **SQL Editor**, grant the administrator role:
-   ```sql
-   UPDATE public.profiles
-   SET role = 'admin'
-   WHERE email = 'admin@smartcarehospital.org';
-   ```
-3. Alternatively, when testing locally, use the top bar **Role Switcher** ("Patient" / "Admin") or click "Admin Demo" in the Sign-In modal to instantly experience the Administrator Portal with pre-loaded data!
+> [!WARNING]
+> **Laptop MySQL Database Security Notice**
+> Your local MySQL database is intended exclusively for local development on your machine.
+> **NEVER expose MySQL port 3306 directly to the internet or port-forward your router.**
 
----
-
-## 🚢 Production Build & Deployment
-
-### Build for Production
-```bash
-npm run build
-```
-The optimized production bundle will be generated in `dist/`.
-
-### Deploying to Vercel
-1. Push this repository to GitHub or GitLab.
-2. Go to [vercel.com](https://vercel.com) and click **Add New** -> **Project**.
-3. Select this repository.
-4. In the **Environment Variables** section, add:
-   - `VITE_SUPABASE_URL`
-   - `VITE_SUPABASE_ANON_KEY`
-5. Click **Deploy**.
+### How to Deploy Securely to Production:
+1. **Managed Cloud Database**:
+   - Provision a secure cloud MySQL instance (e.g., AWS RDS Aurora MySQL, Google Cloud SQL, PlanetScale, or DigitalOcean Managed MySQL).
+   - Require SSL/TLS connections (`ssl: { rejectUnauthorized: true }`).
+   - Place the database inside a Private Subnet / VPC inaccessible from the public internet.
+2. **Backend API Server**:
+   - Deploy the Express API to a container platform (e.g., Render, Railway, AWS ECS, or DigitalOcean App Platform).
+   - Store `DB_PASSWORD` and `JWT_SECRET` in encrypted platform environment variable vaults, never in source code.
+   - Restrict incoming traffic to the backend using a reverse proxy (Nginx or Cloudflare) with rate limiting and CORS restricted to your official hospital domain.
+3. **Frontend Application**:
+   - Deploy the Vite static build (`npm run build` generates `dist/`) to a global CDN (e.g., Vercel, Cloudflare Pages, Netlify).
+   - Point `VITE_API_URL` to your production backend domain (e.g. `https://api.smartcarehospital.org/api`).
 
 ---
 

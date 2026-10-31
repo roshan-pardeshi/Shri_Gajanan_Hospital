@@ -117,6 +117,7 @@ export const SchemesPage: React.FC<SchemesPageProps> = ({
                 <option value="all">All Empanelment Status</option>
                 <option value="Accepted">Accepted at Shri Gajanan Hospital</option>
                 <option value="Under Verification">Under Renewal / Verification</option>
+                <option value="Not Empanelled">Not Empanelled</option>
               </select>
             </div>
           </div>
@@ -125,8 +126,6 @@ export const SchemesPage: React.FC<SchemesPageProps> = ({
         {/* Schemes Cards Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {filteredSchemes.map((scheme) => {
-            const isAccepted = scheme.hospital_acceptance_status === 'Accepted';
-
             return (
               <div
                 key={scheme.id}
@@ -144,15 +143,22 @@ export const SchemesPage: React.FC<SchemesPageProps> = ({
                     </div>
 
                     <div className="shrink-0 text-right">
-                      {isAccepted ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                      {scheme.hospital_acceptance_status === 'Accepted' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shadow-xs">
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                           Accepted Here
                         </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      )}
+                      {scheme.hospital_acceptance_status === 'Under Verification' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-xs">
+                          <Clock className="w-3.5 h-3.5 text-amber-600 animate-pulse" />
                           Under Verification
+                        </span>
+                      )}
+                      {scheme.hospital_acceptance_status === 'Not Empanelled' && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 shadow-xs">
+                          <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                          Not Empaneled
                         </span>
                       )}
                     </div>
@@ -248,8 +254,16 @@ export const SchemesPage: React.FC<SchemesPageProps> = ({
                   {activeModalScheme.name}
                 </h3>
                 <div className="flex flex-wrap items-center gap-3 mt-3">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 flex items-center gap-1">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                  <span className={`px-3 py-1 rounded-full text-xs font-bold flex items-center gap-1.5 ${
+                    activeModalScheme.hospital_acceptance_status === 'Accepted'
+                      ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                      : activeModalScheme.hospital_acceptance_status === 'Under Verification'
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                      : 'bg-slate-100 text-slate-700 border border-slate-200'
+                  }`}>
+                    {activeModalScheme.hospital_acceptance_status === 'Accepted' && <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                    {activeModalScheme.hospital_acceptance_status === 'Under Verification' && <Clock className="w-3.5 h-3.5 text-amber-600" />}
+                    {activeModalScheme.hospital_acceptance_status === 'Not Empanelled' && <AlertCircle className="w-3.5 h-3.5 text-slate-500" />}
                     Hospital Status: {activeModalScheme.hospital_acceptance_status}
                   </span>
                   <span className="text-xs text-slate-400">

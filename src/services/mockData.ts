@@ -1,8 +1,8 @@
-import { Doctor, HealthScheme, HospitalSettings, Speciality, Appointment, Notification } from '../types';
+import { Doctor, HealthScheme, HospitalSettings, Speciality, Appointment, Notification, LaboratoryTest, LaboratorySettings } from '../types';
 
 export const INITIAL_SPECIALITIES: Speciality[] = [
   {
-    id: 'spec-1',
+    id: 'a1000000-0000-0000-0000-000000000001',
     name: 'Cardiology',
     slug: 'cardiology',
     description: 'Comprehensive cardiac care, angiography, angioplasty, pacemaker implantation, and preventative heart wellness.',
@@ -10,7 +10,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-2',
+    id: 'a1000000-0000-0000-0000-000000000002',
     name: 'Orthopaedics & Joint Replacement',
     slug: 'orthopaedics',
     description: 'Advanced joint replacement (knee, hip), trauma surgery, arthroscopy, and spine rehabilitation.',
@@ -18,7 +18,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-3',
+    id: 'a1000000-0000-0000-0000-000000000003',
     name: 'Neurology & Neurosurgery',
     slug: 'neurology',
     description: 'Specialized management for stroke, epilepsy, Parkinson’s disease, neuro-trauma, and spine disorders.',
@@ -26,7 +26,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-4',
+    id: 'a1000000-0000-0000-0000-000000000004',
     name: 'General & Internal Medicine',
     slug: 'general-medicine',
     description: 'Diagnosis and non-surgical treatment of adult diseases, diabetes management, hypertension, and infectious diseases.',
@@ -34,7 +34,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-5',
+    id: 'a1000000-0000-0000-0000-000000000005',
     name: 'Paediatrics & Neonatology',
     slug: 'paediatrics',
     description: 'Complete healthcare from newborn care (Level III NICU) to adolescent growth and developmental medicine.',
@@ -42,7 +42,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-6',
+    id: 'a1000000-0000-0000-0000-000000000006',
     name: 'Oncology',
     slug: 'oncology',
     description: 'Multidisciplinary cancer care with medical chemotherapy, surgical oncology, and radiation planning.',
@@ -50,7 +50,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-7',
+    id: 'a1000000-0000-0000-0000-000000000007',
     name: 'Obstetrics & Gynaecology',
     slug: 'gynaecology',
     description: 'High-risk pregnancy management, painless delivery, laparoscopic gynaecological surgeries, and fertility care.',
@@ -58,7 +58,7 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
     is_active: true,
   },
   {
-    id: 'spec-8',
+    id: 'a1000000-0000-0000-0000-000000000008',
     name: 'Nephrology & Dialysis',
     slug: 'nephrology',
     description: 'Kidney disease management, acute renal care, 24/7 hemodialysis unit, and kidney transplant follow-up.',
@@ -69,9 +69,9 @@ export const INITIAL_SPECIALITIES: Speciality[] = [
 
 export const INITIAL_DOCTORS: Doctor[] = [
   {
-    id: 'doc-1',
+    id: 'b1000000-0000-0000-0000-000000000001',
     name: 'Dr. Rajesh Deshmukh',
-    speciality_id: 'spec-1',
+    speciality_id: 'a1000000-0000-0000-0000-000000000001',
     speciality_name: 'Cardiology',
     qualifications: 'MBBS, MD (Medicine), DM (Cardiology), FACC',
     experience_years: 18,
@@ -88,9 +88,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-2',
+    id: 'b1000000-0000-0000-0000-000000000002',
     name: 'Dr. Priya Kulkarni',
-    speciality_id: 'spec-7',
+    speciality_id: 'a1000000-0000-0000-0000-000000000007',
     speciality_name: 'Obstetrics & Gynaecology',
     qualifications: 'MBBS, MS (OBGYN), DNB, Fellow in Fetal Medicine',
     experience_years: 14,
@@ -107,9 +107,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-3',
+    id: 'b1000000-0000-0000-0000-000000000003',
     name: 'Dr. Anand Joshi',
-    speciality_id: 'spec-2',
+    speciality_id: 'a1000000-0000-0000-0000-000000000002',
     speciality_name: 'Orthopaedics & Joint Replacement',
     qualifications: 'MBBS, MS (Orthopaedics), M.Ch (Ortho - UK), FIJR',
     experience_years: 16,
@@ -126,9 +126,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-4',
+    id: 'b1000000-0000-0000-0000-000000000004',
     name: 'Dr. Meera Iyer',
-    speciality_id: 'spec-5',
+    speciality_id: 'a1000000-0000-0000-0000-000000000005',
     speciality_name: 'Paediatrics & Neonatology',
     qualifications: 'MBBS, MD (Paediatrics), Fellowship in Neonatology (IAP)',
     experience_years: 12,
@@ -145,9 +145,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-5',
+    id: 'b1000000-0000-0000-0000-000000000005',
     name: 'Dr. Vikramaditya Shinde',
-    speciality_id: 'spec-3',
+    speciality_id: 'a1000000-0000-0000-0000-000000000003',
     speciality_name: 'Neurology & Neurosurgery',
     qualifications: 'MBBS, MS (Gen Surgery), M.Ch (Neurosurgery - AIIMS)',
     experience_years: 20,
@@ -164,9 +164,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-6',
+    id: 'b1000000-0000-0000-0000-000000000006',
     name: 'Dr. Sunita Patil',
-    speciality_id: 'spec-4',
+    speciality_id: 'a1000000-0000-0000-0000-000000000004',
     speciality_name: 'General & Internal Medicine',
     qualifications: 'MBBS, MD (General Medicine), PG Dip in Diabetology',
     experience_years: 15,
@@ -183,9 +183,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-7',
+    id: 'b1000000-0000-0000-0000-000000000007',
     name: 'Dr. Arvind Mahajan',
-    speciality_id: 'spec-6',
+    speciality_id: 'a1000000-0000-0000-0000-000000000006',
     speciality_name: 'Oncology',
     qualifications: 'MBBS, MD, DM (Medical Oncology - Tata Memorial), ECMO',
     experience_years: 17,
@@ -202,9 +202,9 @@ export const INITIAL_DOCTORS: Doctor[] = [
     is_active: true,
   },
   {
-    id: 'doc-8',
+    id: 'b1000000-0000-0000-0000-000000000008',
     name: 'Dr. Snehal Kute',
-    speciality_id: 'spec-8',
+    speciality_id: 'a1000000-0000-0000-0000-000000000008',
     speciality_name: 'Nephrology & Dialysis',
     qualifications: 'MBBS, MD (Medicine), DNB (Nephrology), FISN',
     experience_years: 11,
@@ -224,7 +224,7 @@ export const INITIAL_DOCTORS: Doctor[] = [
 
 export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
   {
-    id: 'scheme-1',
+    id: 'c1000000-0000-0000-0000-000000000001',
     name: 'Ayushman Bharat PM-JAY (Pradhan Mantri Jan Arogya Yojana)',
     code: 'PM-JAY',
     category: 'Central',
@@ -256,7 +256,7 @@ export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
     helpline_number: '14555'
   },
   {
-    id: 'scheme-2',
+    id: 'c1000000-0000-0000-0000-000000000002',
     name: 'Mahatma Jyotirao Phule Jan Arogya Yojana (MJPJAY)',
     code: 'MJPJAY',
     category: 'Maharashtra State',
@@ -287,7 +287,7 @@ export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
     helpline_number: '155388 / 1800 233 2200'
   },
   {
-    id: 'scheme-3',
+    id: 'c1000000-0000-0000-0000-000000000003',
     name: 'Central Government Health Scheme (CGHS)',
     code: 'CGHS',
     category: 'Central',
@@ -317,7 +317,7 @@ export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
     helpline_number: '1800 208 8900'
   },
   {
-    id: 'scheme-4',
+    id: 'c1000000-0000-0000-0000-000000000004',
     name: 'Employees\' State Insurance Scheme (ESIC)',
     code: 'ESIC',
     category: 'Central',
@@ -346,7 +346,7 @@ export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
     helpline_number: '1800 11 2526'
   },
   {
-    id: 'scheme-5',
+    id: 'c1000000-0000-0000-0000-000000000005',
     name: 'Rashtriya Arogya Nidhi (RAN)',
     code: 'RAN',
     category: 'Special Assistance',
@@ -375,7 +375,7 @@ export const INITIAL_HEALTH_SCHEMES: HealthScheme[] = [
 ];
 
 export const INITIAL_HOSPITAL_SETTINGS: HospitalSettings = {
-  id: 'hosp-1',
+  id: 'd1000000-0000-0000-0000-000000000001',
   hospital_name: 'SmartCare Hospital - Shri Gajanan Multispeciality',
   tagline: 'Your Health, Our Priority - Modern Medical Care with Compassion',
   phone: '+91 22 2845 6789',
@@ -394,16 +394,16 @@ export const INITIAL_HOSPITAL_SETTINGS: HospitalSettings = {
 
 export const INITIAL_APPOINTMENTS: Appointment[] = [
   {
-    id: 'apt-101',
+    id: 'e1000000-0000-0000-0000-000000000001',
     reference_number: 'SGH-202610-8492',
     patient_id: 'user-patient-1',
     patient_name: 'Suresh Patil',
     patient_phone: '+91 98201 54321',
     patient_email: 'suresh.patil@example.com',
-    doctor_id: 'doc-1',
+    doctor_id: 'b1000000-0000-0000-0000-000000000001',
     doctor_name: 'Dr. Rajesh Deshmukh',
     doctor_photo: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=600',
-    speciality_id: 'spec-1',
+    speciality_id: 'a1000000-0000-0000-0000-000000000001',
     speciality_name: 'Cardiology',
     appointment_date: '2026-10-22',
     start_time: '10:30',
@@ -415,16 +415,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     updated_at: '2026-10-18T11:00:00Z'
   },
   {
-    id: 'apt-102',
+    id: 'e1000000-0000-0000-0000-000000000002',
     reference_number: 'SGH-202610-7215',
     patient_id: 'user-patient-1',
     patient_name: 'Suresh Patil',
     patient_phone: '+91 98201 54321',
     patient_email: 'suresh.patil@example.com',
-    doctor_id: 'doc-3',
+    doctor_id: 'b1000000-0000-0000-0000-000000000003',
     doctor_name: 'Dr. Anand Joshi',
     doctor_photo: 'https://images.unsplash.com/photo-1537368910025-700350fe46c7?auto=format&fit=crop&q=80&w=600',
-    speciality_id: 'spec-2',
+    speciality_id: 'a1000000-0000-0000-0000-000000000002',
     speciality_name: 'Orthopaedics & Joint Replacement',
     appointment_date: '2026-10-25',
     start_time: '14:00',
@@ -436,16 +436,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     updated_at: '2026-10-18T14:30:00Z'
   },
   {
-    id: 'apt-103',
+    id: 'e1000000-0000-0000-0000-000000000003',
     reference_number: 'SGH-202610-3918',
     patient_id: 'user-patient-2',
     patient_name: 'Anjali Sharma',
     patient_phone: '+91 97654 32109',
     patient_email: 'anjali.sharma@example.com',
-    doctor_id: 'doc-2',
+    doctor_id: 'b1000000-0000-0000-0000-000000000002',
     doctor_name: 'Dr. Priya Kulkarni',
     doctor_photo: 'https://images.unsplash.com/photo-1594824813633-4f98114674fe?auto=format&fit=crop&q=80&w=600',
-    speciality_id: 'spec-7',
+    speciality_id: 'a1000000-0000-0000-0000-000000000007',
     speciality_name: 'Obstetrics & Gynaecology',
     appointment_date: '2026-10-21',
     start_time: '11:00',
@@ -457,16 +457,16 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
     updated_at: '2026-10-17T09:45:00Z'
   },
   {
-    id: 'apt-104',
+    id: 'e1000000-0000-0000-0000-000000000004',
     reference_number: 'SGH-202610-1124',
     patient_id: 'user-patient-3',
     patient_name: 'Ganesh More',
     patient_phone: '+91 91234 56780',
     patient_email: 'ganesh.more@example.com',
-    doctor_id: 'doc-6',
+    doctor_id: 'b1000000-0000-0000-0000-000000000006',
     doctor_name: 'Dr. Sunita Patil',
     doctor_photo: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&q=80&w=600',
-    speciality_id: 'spec-4',
+    speciality_id: 'a1000000-0000-0000-0000-000000000004',
     speciality_name: 'General & Internal Medicine',
     appointment_date: '2026-10-20',
     start_time: '09:00',
@@ -485,6 +485,45 @@ export const INITIAL_APPOINTMENTS: Appointment[] = [
 ];
 
 export const INITIAL_NOTIFICATIONS: Notification[] = [
+  {
+    id: 'notif-admin-1',
+    user_id: null,
+    title: 'New Appointment Booking Request',
+    message: 'Patient Roshan Vijay Pardeshi booked Cardiology consultation with Dr. Rajesh Deshmukh (Ref: SGH-20261028-4449).',
+    type: 'appointment_request',
+    is_read: false,
+    reference_id: 'd3df6a39-dba6-4d18-958d-a4e74ad14e81',
+    created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'notif-admin-2',
+    user_id: null,
+    title: 'Appointment Cancelled',
+    message: 'Patient Suresh Patil cancelled appointment Ref: SGH-20261110-5937 due to personal emergency.',
+    type: 'appointment_cancelled',
+    is_read: false,
+    reference_id: '51293f59-23a2-4384-b473-a44165449c10',
+    created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString()
+  },
+  {
+    id: 'notif-admin-3',
+    user_id: null,
+    title: 'Appointment Reschedule Request',
+    message: 'Patient Anjali Nair requested new slot for Dr. Anand Joshi (Ref: SGH-202610-8832).',
+    type: 'reschedule_request',
+    is_read: false,
+    reference_id: 'apt-103',
+    created_at: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+  },
+  {
+    id: 'notif-admin-4',
+    user_id: null,
+    title: 'Govt Health Scheme Audit Verified',
+    message: 'Ayushman Bharat PM-JAY and MJPJAY annual hospital empanelment criteria verified successfully.',
+    type: 'general',
+    is_read: true,
+    created_at: new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  },
   {
     id: 'notif-1',
     user_id: 'user-patient-1',
@@ -506,3 +545,257 @@ export const INITIAL_NOTIFICATIONS: Notification[] = [
     created_at: '2026-10-18T14:30:00Z'
   }
 ];
+
+export const INITIAL_LABORATORY_SETTINGS: LaboratorySettings = {
+  id: 'e1000000-0000-0000-0000-000000000001',
+  lab_name: 'Shri Gajanan Hospital Diagnostic Laboratory',
+  location: 'Ground Floor, Diagnostics & Imaging Wing B (Near Main OPD)',
+  operating_hours: 'Routine Sample Collection: Mon - Sat 07:30 AM - 07:00 PM | 24/7 Emergency Diagnostics',
+  contact_phone: '+91 22 2845 6795',
+  general_description: 'Fully automated, quality-controlled clinical pathology, hematology, biochemistry, and microbiology laboratory delivering accurate and timely diagnostic reports.',
+  accepts_walkins: true,
+  appointment_required: false,
+  updated_at: '2026-10-20T10:00:00Z'
+};
+
+export const INITIAL_LABORATORY_TESTS: LaboratoryTest[] = [
+  {
+    id: 'e2000000-0000-0000-0000-000000000001',
+    name: 'Complete Blood Count (CBC) with Automated Differential',
+    slug: 'complete-blood-count-cbc',
+    category: 'Complete Blood Count (CBC)',
+    description: 'Evaluates overall cellular health by measuring red blood cells (RBC), white blood cells (WBC), hemoglobin, hematocrit, and platelet count.',
+    sample_type: 'Blood (EDTA Whole Blood)',
+    preparation_instructions: 'No special diet required. Stay adequately hydrated before sample collection.',
+    fasting_required: false,
+    indicative_price: 350.00,
+    turnaround_time: 'Within 3-4 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 1,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000002',
+    name: 'Hemoglobin (Hb) & Red Cell Indices',
+    slug: 'hemoglobin-hb-indices',
+    category: 'Hemoglobin and blood cell tests',
+    description: 'Rapid quantitative hemoglobin concentration with MCV, MCH, and MCHC to detect nutritional or acute anemia.',
+    sample_type: 'Blood (EDTA Whole Blood)',
+    preparation_instructions: 'No prior fasting needed.',
+    fasting_required: false,
+    indicative_price: 180.00,
+    turnaround_time: 'Within 2 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 2,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000003',
+    name: 'Fasting Blood Glucose (FBS)',
+    slug: 'fasting-blood-glucose-fbs',
+    category: 'Blood glucose tests',
+    description: 'Measures plasma glucose levels following an overnight fast. Primary screening test for prediabetes and type 1 or type 2 diabetes mellitus.',
+    sample_type: 'Blood (Fluoride Plasma)',
+    preparation_instructions: 'Requires mandatory 8 to 10 hours overnight fasting. Water intake is permitted. Avoid smoking or morning coffee before sample collection.',
+    fasting_required: true,
+    indicative_price: 120.00,
+    turnaround_time: 'Within 2-3 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 3,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000004',
+    name: 'HbA1c (Glycated Hemoglobin) - HPLC Method',
+    slug: 'hba1c-glycated-hemoglobin',
+    category: 'Blood glucose tests',
+    description: 'Determines average 3-month blood sugar control using gold-standard HPLC methodology. Essential for monitoring long-term glycemic therapy.',
+    sample_type: 'Blood (EDTA Whole Blood)',
+    preparation_instructions: 'Fasting is NOT required. Can be drawn at any convenient time of day.',
+    fasting_required: false,
+    indicative_price: 550.00,
+    turnaround_time: 'Within 4-6 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 4,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000005',
+    name: 'Postprandial Blood Glucose (PPBS)',
+    slug: 'postprandial-blood-glucose-ppbs',
+    category: 'Blood glucose tests',
+    description: 'Assesses glycemic response precisely 2 hours after commencing a meal or prescribed 75g glucose load.',
+    sample_type: 'Blood (Fluoride Plasma)',
+    preparation_instructions: 'Sample must be collected precisely 2 hours from the start of your regular meal. Note the exact timing.',
+    fasting_required: false,
+    indicative_price: 120.00,
+    turnaround_time: 'Within 2-3 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 5,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000006',
+    name: 'Lipid Profile Comprehensive',
+    slug: 'lipid-profile-comprehensive',
+    category: 'Lipid profile',
+    description: 'Quantifies Total Cholesterol, HDL (good), LDL (bad), VLDL, and Triglycerides to evaluate cardiovascular risk and atherogenic index.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Requires 10 to 12 hours of overnight fasting. Avoid heavy or fatty meals and alcohol the evening prior.',
+    fasting_required: true,
+    indicative_price: 650.00,
+    turnaround_time: 'Within 5-6 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 6,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000007',
+    name: 'Liver Function Test (LFT) with Enzymes & Proteins',
+    slug: 'liver-function-test-lft',
+    category: 'Liver function tests',
+    description: 'Comprehensive hepatic evaluation: Total/Direct Bilirubin, SGOT (AST), SGPT (ALT), Alkaline Phosphatase (ALP), Total Protein, Albumin, and A/G ratio.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Overnight fasting of 8-10 hours is recommended for accurate bilirubin and enzyme quantification.',
+    fasting_required: true,
+    indicative_price: 700.00,
+    turnaround_time: 'Within 5-6 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 7,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000008',
+    name: 'Kidney Function Test (KFT / RFT) with Electrolytes',
+    slug: 'kidney-function-test-kft',
+    category: 'Kidney function tests',
+    description: 'Evaluates renal filtration capacity: Blood Urea Nitrogen (BUN), Serum Creatinine, Uric Acid, Sodium, Potassium, and Chloride.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Fasting of 4-6 hours preferred. Avoid vigorous unaccustomed exercise or high-protein intake right before the test.',
+    fasting_required: false,
+    indicative_price: 750.00,
+    turnaround_time: 'Within 4-5 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 8,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000009',
+    name: 'Thyroid Stimulating Hormone (TSH) - Ultra Sensitive',
+    slug: 'thyroid-stimulating-hormone-tsh',
+    category: 'Thyroid function tests',
+    description: 'Ultrasensitive 3rd generation ECLIA assay to screen for primary hypothyroidism and hyperthyroidism.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Early morning sample preferred. If taking thyroid medication (e.g., levothyroxine), consult your doctor regarding dose timing.',
+    fasting_required: false,
+    indicative_price: 280.00,
+    turnaround_time: 'Same Day (4 Hours)',
+    is_available: true,
+    is_published: true,
+    display_order: 9,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000010',
+    name: 'Complete Thyroid Profile (Total T3, Total T4, TSH)',
+    slug: 'complete-thyroid-profile-t3-t4-tsh',
+    category: 'Thyroid function tests',
+    description: 'Comprehensive triad assessment of active thyroid hormones and pituitary feedback loop.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Morning collection recommended. Fasting is not strictly mandatory but avoids post-meal lipemia interference.',
+    fasting_required: false,
+    indicative_price: 550.00,
+    turnaround_time: 'Within 6 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 10,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000011',
+    name: 'Serum Ferritin & Iron Studies Profile',
+    slug: 'serum-ferritin-iron-studies',
+    category: 'Iron studies',
+    description: 'Assesses total iron stores, Serum Iron, Total Iron Binding Capacity (TIBC), and Transferrin Saturation for microcytic anemia differential.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Overnight fasting of 8-10 hours is strongly recommended because serum iron levels exhibit significant diurnal variation.',
+    fasting_required: true,
+    indicative_price: 950.00,
+    turnaround_time: 'Within 8-12 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 11,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000012',
+    name: 'Vitamin D (25-Hydroxy) Chemiluminescence',
+    slug: 'vitamin-d-25-hydroxy',
+    category: 'Vitamin tests',
+    description: 'High-precision ECLIA assay quantifying 25-OH Vitamin D for bone mineral density, osteopenia, and immunological health.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'No fasting required. Avoid heavy vitamin supplement bolus immediately prior to sample collection.',
+    fasting_required: false,
+    indicative_price: 1100.00,
+    turnaround_time: 'Same Day (6-8 Hours)',
+    is_available: true,
+    is_published: true,
+    display_order: 12,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000013',
+    name: 'Vitamin B12 (Active Cyanocobalamin)',
+    slug: 'vitamin-b12-active',
+    category: 'Vitamin tests',
+    description: 'Quantifies circulating Vitamin B12 to investigate megaloblastic anemia, neuropathies, fatigue, and vegan/vegetarian dietary deficiency.',
+    sample_type: 'Blood (Serum)',
+    preparation_instructions: 'Fasting for 6-8 hours preferred. Inform technician if receiving B12 injections.',
+    fasting_required: false,
+    indicative_price: 850.00,
+    turnaround_time: 'Within 6-8 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 13,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  },
+  {
+    id: 'e2000000-0000-0000-0000-000000000014',
+    name: 'Urine Routine & Microscopic Examination',
+    slug: 'urine-routine-microscopic',
+    category: 'Other laboratory services',
+    description: 'Physical, chemical strip (pH, protein, glucose, ketones), and microscopic sediment analysis (pus cells, RBCs, casts, crystals).',
+    sample_type: 'Urine (Clean-Catch Midstream)',
+    preparation_instructions: 'Collect first-morning clean-catch midstream urine in a sterile container provided by the hospital laboratory.',
+    fasting_required: false,
+    indicative_price: 150.00,
+    turnaround_time: 'Within 2-3 Hours',
+    is_available: true,
+    is_published: true,
+    display_order: 14,
+    created_at: '2026-10-20T08:00:00Z',
+    updated_at: '2026-10-20T08:00:00Z'
+  }
+];
+

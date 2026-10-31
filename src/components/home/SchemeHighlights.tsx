@@ -3,6 +3,8 @@ import {
   HeartHandshake, 
   CheckCircle2, 
   ShieldCheck, 
+  Clock,
+  AlertCircle,
   ExternalLink, 
   ArrowRight,
   Info
@@ -72,10 +74,24 @@ export const SchemeHighlights: React.FC<SchemeHighlightsProps> = ({
                   </div>
 
                   <div className="shrink-0 text-right">
-                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      Hospital Empaneled
-                    </span>
+                    {scheme.hospital_acceptance_status === 'Accepted' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200/60 shadow-xs">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        Hospital Empaneled
+                      </span>
+                    )}
+                    {scheme.hospital_acceptance_status === 'Under Verification' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200/60 shadow-xs">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" />
+                        Under Verification
+                      </span>
+                    )}
+                    {scheme.hospital_acceptance_status === 'Not Empanelled' && (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200/60 shadow-xs">
+                        <AlertCircle className="w-3.5 h-3.5 text-slate-500" />
+                        Not Empaneled
+                      </span>
+                    )}
                   </div>
                 </div>
 

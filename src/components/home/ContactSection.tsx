@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Phone, 
   Mail, 
@@ -7,9 +7,17 @@ import {
   Send, 
   CheckCircle2 
 } from 'lucide-react';
+import { HospitalSettings } from '../../types';
+import { dataService } from '../../services/dataService';
 
-export const ContactSection: React.FC = () => {
+interface ContactSectionProps {
+  settings?: HospitalSettings | null;
+}
+
+export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSettings }) => {
+  const [settings, setSettings] = useState<HospitalSettings | null>(propSettings || null);
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -17,15 +25,55 @@ export const ContactSection: React.FC = () => {
     message: ''
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (propSettings) {
+      setSettings(propSettings);
+    } else {
+      dataService.getHospitalSettings().then(setSettings);
+    }
+
+    const handleSettingsUpdate = (e: any) => {
+      if (e.detail) {
+        setSettings(e.detail);
+      } else {
+        dataService.getHospitalSettings().then(setSettings);
+      }
+    };
+    window.addEventListener('hospital-settings-updated', handleSettingsUpdate);
+    return () => window.removeEventListener('hospital-settings-updated', handleSettingsUpdate);
+  }, [propSettings]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name || !formData.phone) return;
-    setSubmitted(true);
-    setTimeout(() => {
-      setSubmitted(false);
-      setFormData({ name: '', phone: '', department: 'General Enquiry', message: '' });
-    }, 4000);
+    if (!formData.name.trim() || !formData.phone.trim() || submitting) return;
+
+    setSubmitting(true);
+    try {
+      await dataService.createNotification({
+        title: `Patient Query / Feedback: ${formData.name}`,
+        message: `Department/Concern: ${formData.department}\nPhone: ${formData.phone}\nMessage: ${formData.message?.trim() || 'No additional message provided.'}`,
+        type: 'general',
+      });
+      window.dispatchEvent(new CustomEvent('new-hospital-notification'));
+    } catch (err) {
+      console.warn('Could not post notification to API:', err);
+    } finally {
+      setSubmitting(false);
+      setSubmitted(true);
+      setTimeout(() => {
+        setSubmitted(false);
+        setFormData({ name: '', phone: '', department: 'General Enquiry', message: '' });
+      }, 5000);
+    }
   };
+
+  const address = settings?.address || 'Plot No. 42, Station Road, Near Gajanan Maharaj Mandir, Borivali West';
+  const cityState = settings?.city ? `, ${settings.city}${settings.state ? ', ' + settings.state : ''} ${settings.pincode || ''}` : '';
+  const fullAddress = address.includes('Mumbai') ? address : `${address}${cityState}`;
+  const emergencyPhone = settings?.emergency_helpline || '+91 22 2845 9999';
+  const opdPhone = settings?.phone || '+91 22 2845 6789';
+  const operatingHours = settings?.operating_hours || 'Mon – Sat: 08:00 AM – 08:00 PM\nSunday: Emergency Only';
+  const email = settings?.email || 'contact@smartcarehospital.org';
 
   return (
     <section className="py-16 bg-slate-50 border-t border-slate-200/80">
@@ -55,7 +103,7 @@ export const ContactSection: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">Hospital Address</h4>
                     <p className="text-xs text-slate-500 mt-1 leading-relaxed">
-                      Plot No. 42, Station Road, Near Gajanan Maharaj Mandir, Borivali West, Mumbai, Maharashtra 400092
+                      {fullAddress}
                     </p>
                   </div>
                 </div>
@@ -67,10 +115,10 @@ export const ContactSection: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">Helpline & Casualty</h4>
                     <p className="text-xs font-bold text-rose-600 mt-0.5">
-                      Emergency: +91 22 2845 9999
+                      Emergency: <a href={`tel:${emergencyPhone}`} className="hover:underline">{emergencyPhone}</a>
                     </p>
                     <p className="text-xs text-slate-500">
-                      OPD Desk: +91 22 2845 6789
+                      OPD Desk: <a href={`tel:${opdPhone}`} className="hover:underline">{opdPhone}</a>
                     </p>
                   </div>
                 </div>
@@ -83,9 +131,8 @@ export const ContactSection: React.FC = () => {
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">OPD Consultation Hours</h4>
-                    <p className="text-xs text-slate-500 mt-1">
-                      Mon – Sat: 08:00 AM – 08:00 PM<br />
-                      Sunday: Emergency Only
+                    <p className="text-xs text-slate-500 mt-1 whitespace-pre-line">
+                      {operatingHours}
                     </p>
                   </div>
                 </div>
@@ -97,7 +144,7 @@ export const ContactSection: React.FC = () => {
                   <div>
                     <h4 className="font-bold text-slate-900 text-sm">Electronic Inquiries</h4>
                     <p className="text-xs text-slate-500 mt-1">
-                      contact@smartcarehospital.org<br />
+                      <a href={`mailto:${email}`} className="text-teal-700 hover:underline">{email}</a><br />
                       schemes@smartcarehospital.org
                     </p>
                   </div>
@@ -117,9 +164,9 @@ export const ContactSection: React.FC = () => {
               <div className="relative z-10 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-white text-center">
                 <div className="flex items-center gap-2 text-teal-700 font-bold text-xs">
                   <MapPin className="w-4 h-4 text-rose-500" />
-                  <span>Shri Gajanan Multispeciality Hospital</span>
+                  <span>{settings?.hospital_name || 'Shri Gajanan Multispeciality Hospital'}</span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">Station Road, Borivali West, Mumbai</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{fullAddress}</p>
               </div>
             </div>
           </div>
@@ -209,10 +256,11 @@ export const ContactSection: React.FC = () => {
 
                   <button
                     type="submit"
-                    className="w-full py-3 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center gap-2 shadow-md shadow-teal-600/20 active:scale-95 transition-all"
+                    disabled={submitting}
+                    className="w-full py-3 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white flex items-center justify-center gap-2 shadow-md shadow-teal-600/20 active:scale-95 disabled:opacity-60 transition-all cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
-                    <span>Send Message</span>
+                    <span>{submitting ? 'Sending Message...' : 'Send Message'}</span>
                   </button>
                 </form>
               )}
