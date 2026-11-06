@@ -283,6 +283,7 @@ const MainApp: React.FC = () => {
             <HeroSection
               onOpenBooking={handleOpenBookingGeneral}
               onExploreSchemes={() => navigateTo('schemes')}
+              onNavigateContact={() => navigateTo('contact')}
             />
             <QuickAccessCards
               onNavigate={navigateTo}
