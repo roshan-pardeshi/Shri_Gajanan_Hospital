@@ -83,22 +83,22 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
 
       {/* Mobile-Friendly Accessible Quick-Action Bar */}
       {/* On mobile screens, guarantees clear, touch-friendly 44px+ tap targets for patient convenience */}
-      <div className="sm:hidden px-4 py-3 bg-white border-b border-slate-200 shadow-xs flex items-center gap-3">
+      <div className="sm:hidden px-3 min-[360px]:px-4 py-3 bg-white border-b border-slate-200 shadow-xs flex flex-col min-[360px]:flex-row items-stretch min-[360px]:items-center gap-2.5 min-[360px]:gap-3">
         <button
           type="button"
           onClick={onOpenBooking}
-          className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white flex items-center justify-center gap-2 shadow-md shadow-rose-500/25 active:scale-95 transition-all"
+          className="w-full min-[360px]:flex-1 py-2.5 min-[360px]:py-3 px-3 min-[360px]:px-4 rounded-xl font-bold text-xs bg-rose-500 hover:bg-rose-600 active:bg-rose-700 text-white flex items-center justify-center gap-2 shadow-md shadow-rose-500/25 active:scale-95 transition-all whitespace-nowrap"
         >
-          <Calendar className="w-4 h-4" />
+          <Calendar className="w-4 h-4 shrink-0" />
           <span>Book Appointment</span>
         </button>
 
         <button
           type="button"
           onClick={handleContactClick}
-          className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all"
+          className="w-full min-[360px]:flex-1 py-2.5 min-[360px]:py-3 px-3 min-[360px]:px-4 rounded-xl font-bold text-xs bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white flex items-center justify-center gap-2 shadow-md active:scale-95 transition-all whitespace-nowrap"
         >
-          <Phone className="w-4 h-4" />
+          <Phone className="w-4 h-4 shrink-0" />
           <span>Contact Us</span>
         </button>
       </div>

@@ -59,10 +59,10 @@ export const PatientReviewsSection: React.FC<PatientReviewsSectionProps> = ({
         
         {/* Section Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 mb-3">
-              <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-              <span>Authentic Patient Recovery & Experiences</span>
+          <div className="min-w-0 max-w-full">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-teal-50 text-teal-700 border border-teal-200 mb-3 max-w-full min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+              <span className="truncate min-w-0">Authentic Patient Recovery & Experiences</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Patient Feedback & Reviews
@@ -73,8 +73,8 @@ export const PatientReviewsSection: React.FC<PatientReviewsSectionProps> = ({
           </div>
 
           {/* Stats Summary & Call to Action Button */}
-          <div className="flex flex-wrap items-center gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
-            <div className="flex items-center gap-3 pr-4 border-r border-slate-200">
+          <div className="flex flex-col min-[420px]:flex-row items-stretch min-[420px]:items-center gap-3.5 min-[420px]:gap-4 bg-slate-50 p-3.5 sm:p-4 rounded-2xl border border-slate-200/80 w-full sm:w-auto">
+            <div className="flex items-center gap-3 pr-0 min-[420px]:pr-4 border-r-0 min-[420px]:border-r border-slate-200 pb-2 min-[420px]:pb-0 border-b min-[420px]:border-b-0">
               <div className="text-3xl font-black text-slate-900 leading-none">
                 {stats.average_rating ? stats.average_rating.toFixed(1) : '5.0'}
               </div>
@@ -93,9 +93,9 @@ export const PatientReviewsSection: React.FC<PatientReviewsSectionProps> = ({
             <button
               type="button"
               onClick={onOpenReviewModal}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow-md transition-all active:scale-95"
+              className="w-full min-[420px]:w-auto inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-sm hover:shadow-md transition-all active:scale-95 text-center"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 shrink-0" />
               <span>Share Your Feedback</span>
             </button>
           </div>

@@ -96,35 +96,35 @@ export const ChiefDoctorSection: React.FC<ChiefDoctorSectionProps> = ({
   return (
     <section 
       id="chief-doctor-section"
-      className="py-12 lg:py-16 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-100 relative overflow-hidden"
+      className="py-10 sm:py-12 lg:py-16 bg-gradient-to-b from-slate-50 via-white to-slate-50 border-b border-slate-100 relative overflow-hidden"
     >
       {/* Decorative Background Lighting */}
       <div className="absolute top-0 right-10 w-96 h-96 bg-teal-100/40 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-10 w-80 h-80 bg-sky-100/30 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 relative z-10">
         
         {/* Section Header Badge */}
-        <div className="text-center sm:text-left mb-8 lg:mb-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-xs font-bold uppercase tracking-wider shadow-2xs">
-            <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-            <span>Meet Our Chief Doctor & Leadership</span>
+        <div className="text-center sm:text-left mb-8 lg:mb-10 min-w-0 max-w-full">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-200 text-teal-800 text-[11px] sm:text-xs font-bold uppercase tracking-wider shadow-2xs max-w-full min-w-0">
+            <Sparkles className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+            <span className="truncate min-w-0">Meet Our Chief Doctor & Leadership</span>
           </div>
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
+          <h2 className="text-xl xs:text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 mt-2.5 tracking-tight">
             Excellence in Medical Leadership & Compassionate Healing
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 mt-2 max-w-3xl">
+          <p className="text-xs sm:text-sm md:text-base text-slate-600 mt-2 max-w-3xl">
             Guiding Shri Gajanan Hospital with visionary clinical expertise, rigorous safety protocols, and personalized patient-first attention.
           </p>
         </div>
 
         {/* Main Card Container */}
         <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/60 border border-slate-200/80 overflow-hidden">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center p-6 sm:p-8 lg:p-10">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center p-4 xs:p-6 sm:p-8 lg:p-10">
             
             {/* LEFT COLUMN: Large Professional Photograph */}
             <div className="lg:col-span-5 flex flex-col items-center">
-              <div className="relative w-full max-w-md mx-auto">
+              <div className="relative w-full max-w-xs sm:max-w-md mx-auto">
                 {/* Decorative Frame Glow */}
                 <div className="absolute -inset-2 bg-gradient-to-tr from-teal-500/20 to-sky-400/20 rounded-3xl blur-md pointer-events-none" />
 
@@ -168,47 +168,47 @@ export const ChiefDoctorSection: React.FC<ChiefDoctorSectionProps> = ({
             </div>
 
             {/* RIGHT COLUMN: Chief Doctor Information */}
-            <div className="lg:col-span-7 flex flex-col justify-center space-y-6 text-left">
+            <div className="lg:col-span-7 flex flex-col justify-center space-y-5 sm:space-y-6 text-left">
               
               {/* Doctor Title & Speciality */}
               <div>
-                <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100/90 text-teal-800 border border-teal-200">
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-2">
+                  <span className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-extrabold bg-teal-100/90 text-teal-800 border border-teal-200">
                     {designation}
                   </span>
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
-                    <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
+                  <span className="px-2.5 sm:px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 border border-slate-200 flex items-center gap-1.5">
+                    <HeartPulse className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                     <span>{speciality}</span>
                   </span>
                 </div>
 
-                <h3 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+                <h3 className="text-xl xs:text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
                   {doctorName}
                 </h3>
-                <p className="text-sm font-semibold text-teal-700 mt-1 flex items-center gap-2">
-                  <Stethoscope className="w-4 h-4 text-teal-600" />
+                <p className="text-xs sm:text-sm font-semibold text-teal-700 mt-1 flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-teal-600 shrink-0" />
                   <span>{qualifications}</span>
                 </p>
               </div>
 
               {/* Key Highlights Metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3.5 pt-1">
-                <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-200/70 text-center sm:text-left">
-                  <span className="text-2xl font-black text-teal-600">{experienceYears}+</span>
-                  <p className="text-xs font-bold text-slate-800 mt-0.5">Years Experience</p>
-                  <p className="text-[11px] text-slate-500">Clinical Leadership</p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 pt-1">
+                <div className="bg-slate-50/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/70 text-center sm:text-left">
+                  <span className="text-xl sm:text-2xl font-black text-teal-600">{experienceYears}+</span>
+                  <p className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5">Years Experience</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500">Clinical Leadership</p>
                 </div>
 
-                <div className="bg-slate-50/80 rounded-2xl p-3.5 border border-slate-200/70 text-center sm:text-left">
-                  <span className="text-2xl font-black text-slate-900">6,500+</span>
-                  <p className="text-xs font-bold text-slate-800 mt-0.5">Procedures</p>
-                  <p className="text-[11px] text-slate-500">Complex Interventions</p>
+                <div className="bg-slate-50/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/70 text-center sm:text-left">
+                  <span className="text-xl sm:text-2xl font-black text-slate-900">6,500+</span>
+                  <p className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5">Procedures</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500">Complex Interventions</p>
                 </div>
 
-                <div className="col-span-2 sm:col-span-1 bg-slate-50/80 rounded-2xl p-3.5 border border-slate-200/70 text-center sm:text-left">
-                  <span className="text-2xl font-black text-emerald-600">100%</span>
-                  <p className="text-xs font-bold text-slate-800 mt-0.5">Patient Safety</p>
-                  <p className="text-[11px] text-slate-500">NABH Standards</p>
+                <div className="col-span-2 sm:col-span-1 bg-slate-50/80 rounded-xl sm:rounded-2xl p-2.5 sm:p-3.5 border border-slate-200/70 text-center sm:text-left">
+                  <span className="text-xl sm:text-2xl font-black text-emerald-600">100%</span>
+                  <p className="text-[11px] sm:text-xs font-bold text-slate-800 mt-0.5">Patient Safety</p>
+                  <p className="text-[10px] sm:text-[11px] text-slate-500">NABH Standards</p>
                 </div>
               </div>
 
@@ -217,19 +217,19 @@ export const ChiefDoctorSection: React.FC<ChiefDoctorSectionProps> = ({
                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1.5">
                   Professional Profile & Clinical Leadership
                 </h4>
-                <p className="text-sm text-slate-700 leading-relaxed font-normal">
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-normal">
                   {introduction}
                 </p>
               </div>
 
               {/* Patient Welcome Message Card */}
-              <div className="relative bg-gradient-to-r from-teal-50/80 via-white to-sky-50/60 rounded-2xl p-4 sm:p-5 border-l-4 border-teal-600 border border-slate-200/60 shadow-2xs">
+              <div className="relative bg-gradient-to-r from-teal-50/80 via-white to-sky-50/60 rounded-2xl p-3.5 sm:p-5 border-l-4 border-teal-600 border border-slate-200/60 shadow-2xs">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center shrink-0 mt-0.5">
                     <Quote className="w-4 h-4" />
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-teal-900 uppercase tracking-wide">
+                    <h5 className="text-[11px] sm:text-xs font-bold text-teal-900 uppercase tracking-wide">
                       A Personal Message From the Medical Director
                     </h5>
                     <p className="text-xs sm:text-sm italic text-slate-700 mt-1 leading-relaxed">
@@ -243,22 +243,22 @@ export const ChiefDoctorSection: React.FC<ChiefDoctorSectionProps> = ({
               </div>
 
               {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 pt-2">
                 <button
                   type="button"
                   onClick={handleBookAppointment}
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 active:scale-95 transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold text-xs bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-600/20 active:scale-95 transition-all text-center"
                 >
-                  <Calendar className="w-4 h-4" />
+                  <Calendar className="w-4 h-4 shrink-0" />
                   <span>Book Appointment with Chief Doctor</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={handleContactClick}
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl font-bold text-xs bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-2xs hover:border-teal-500 active:scale-95 transition-all"
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl font-bold text-xs bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 shadow-2xs hover:border-teal-500 active:scale-95 transition-all text-center"
                 >
-                  <PhoneCall className="w-4 h-4 text-teal-600" />
+                  <PhoneCall className="w-4 h-4 text-teal-600 shrink-0" />
                   <span>Hospital Helpdesk & OPD Hours</span>
                 </button>
               </div>

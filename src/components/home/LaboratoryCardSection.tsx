@@ -35,10 +35,10 @@ export const LaboratoryCardSection: React.FC<LaboratoryCardSectionProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         
         {/* Section Header */}
-        <div className="max-w-3xl mx-auto text-center mb-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/60 text-teal-700 text-xs font-bold mb-2.5">
-            <Microscope className="w-4 h-4 text-teal-600" />
-            <span>Pathology & Diagnostic Testing</span>
+        <div className="max-w-3xl mx-auto text-center mb-10 min-w-0 max-w-full">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-50 border border-teal-200/60 text-teal-700 text-[11px] sm:text-xs font-bold mb-2.5 max-w-full min-w-0">
+            <Microscope className="w-4 h-4 text-teal-600 shrink-0" />
+            <span className="truncate min-w-0">Pathology & Diagnostic Testing</span>
           </div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Laboratory & Blood Testing Services
@@ -52,7 +52,7 @@ export const LaboratoryCardSection: React.FC<LaboratoryCardSectionProps> = ({
         <div className="bg-white rounded-3xl border border-slate-200/90 shadow-xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 transition-all">
           
           {/* Left Column: Visual & Diagnostic Focus */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
+          <div className="lg:col-span-5 bg-gradient-to-br from-slate-900 via-slate-800 to-teal-950 p-6 xs:p-8 sm:p-10 text-white flex flex-col justify-between relative overflow-hidden">
             {/* Ambient Background Graphic */}
             <div className="absolute -right-10 -bottom-10 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
             <div className="absolute -left-10 -top-10 w-48 h-48 bg-sky-500/10 rounded-full blur-2xl pointer-events-none" />
@@ -75,7 +75,7 @@ export const LaboratoryCardSection: React.FC<LaboratoryCardSectionProps> = ({
             </div>
 
             {/* Service Badges */}
-            <div className="relative z-10 mt-8 pt-6 border-t border-slate-700/60 grid grid-cols-2 gap-3 text-xs">
+            <div className="relative z-10 mt-8 pt-6 border-t border-slate-700/60 grid grid-cols-1 min-[360px]:grid-cols-2 gap-2.5 min-[360px]:gap-3 text-xs">
               <div className="flex items-center gap-2 text-slate-300">
                 <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0" />
                 <span>Automated Analyzers</span>
@@ -96,7 +96,7 @@ export const LaboratoryCardSection: React.FC<LaboratoryCardSectionProps> = ({
           </div>
 
           {/* Right Column: Lab Info, Timings, & Action CTAs */}
-          <div className="lg:col-span-7 p-8 sm:p-10 flex flex-col justify-between space-y-6">
+          <div className="lg:col-span-7 p-6 xs:p-8 sm:p-10 flex flex-col justify-between space-y-6">
             
             {/* Information Grid */}
             <div className="space-y-4">
@@ -139,9 +139,9 @@ export const LaboratoryCardSection: React.FC<LaboratoryCardSectionProps> = ({
                 </div>
                 <a
                   href={`tel:${phone}`}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-white border border-teal-200 text-xs font-bold text-teal-800 hover:bg-teal-600 hover:text-white transition-colors shrink-0 shadow-2xs"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl bg-white border border-teal-200 text-xs font-bold text-teal-800 hover:bg-teal-600 hover:text-white transition-colors shrink-0 shadow-2xs text-center"
                 >
-                  <Phone className="w-3.5 h-3.5" />
+                  <Phone className="w-3.5 h-3.5 shrink-0" />
                   <span>{phone}</span>
                 </a>
               </div>

@@ -29,15 +29,15 @@ export const SchemeHighlights: React.FC<SchemeHighlightsProps> = ({
     <section className="py-16 bg-gradient-to-b from-white to-teal-50/40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-12 gap-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold mb-2">
-              <HeartHandshake className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Government of India & Maharashtra Healthcare Initiatives</span>
+          <div className="min-w-0 max-w-full">
+            <div className="inline-flex items-center gap-1.5 px-2.5 xs:px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] xs:text-[11px] sm:text-xs font-bold mb-2 max-w-full min-w-0">
+              <HeartHandshake className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span className="truncate min-w-0">Government of India & Maharashtra Healthcare Initiatives</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            <h2 className="text-xl xs:text-2xl sm:text-3xl font-extrabold text-slate-900">
               Government Health Scheme Assistance
             </h2>
-            <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl">
               Shri Gajanan Hospital is a verified empaneled hospital providing 100% cashless treatment for eligible beneficiaries under Ayushman Bharat PM-JAY and MJPJAY.
             </p>
           </div>
@@ -45,7 +45,7 @@ export const SchemeHighlights: React.FC<SchemeHighlightsProps> = ({
           <button
             type="button"
             onClick={onExploreSchemes}
-            className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-100/70 hover:bg-teal-100 px-4 py-2 rounded-xl transition-all"
+            className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-100/70 hover:bg-teal-100 px-4 py-2 rounded-xl transition-all shrink-0"
           >
             <span>All Schemes Directory</span>
             <ArrowRight className="w-4 h-4" />
@@ -175,7 +175,7 @@ export const SchemeHighlights: React.FC<SchemeHighlightsProps> = ({
 
           <a
             href="tel:+912228456789"
-            className="shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-900 text-white hover:bg-slate-800 transition-colors"
+            className="w-full sm:w-auto shrink-0 px-4 py-2.5 rounded-xl font-bold text-xs bg-slate-900 text-white hover:bg-slate-800 transition-colors text-center"
           >
             Call Scheme Desk: +91 22 2845 6789
           </a>

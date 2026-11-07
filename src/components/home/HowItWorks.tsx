@@ -159,11 +159,11 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6">
 
         {/* Section Heading */}
-        <div className="text-center max-w-2xl mx-auto mb-14">
+        <div className="text-center max-w-2xl mx-auto mb-14 min-w-0 max-w-full">
 
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-teal-100 text-teal-700 text-xs font-bold uppercase tracking-wider mb-4">
-            <HeartPulse className="w-4 h-4" />
-            Simple & Convenient Healthcare
+          <div className="inline-flex items-center gap-2 px-3 xs:px-4 py-1.5 xs:py-2 rounded-full bg-teal-100 text-teal-700 text-[11px] xs:text-xs font-bold uppercase tracking-wider mb-4 max-w-full min-w-0">
+            <HeartPulse className="w-4 h-4 shrink-0" />
+            <span className="truncate min-w-0">Simple & Convenient Healthcare</span>
           </div>
 
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
@@ -259,10 +259,10 @@ export const HowItWorks: React.FC<HowItWorksProps> = ({
           <button
             type="button"
             onClick={onOpenBooking}
-            className="inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold text-sm sm:text-base bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-600/20 hover:shadow-xl transition-all duration-300 active:scale-95"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 sm:gap-3 px-5 sm:px-8 py-3 sm:py-4 rounded-xl font-bold text-xs sm:text-base bg-teal-600 hover:bg-teal-700 text-white shadow-lg shadow-teal-600/20 hover:shadow-xl transition-all duration-300 active:scale-95"
           >
-            Book Your Appointment Now
-            <ArrowRight className="w-5 h-5" />
+            <span>Book Your Appointment Now</span>
+            <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5 shrink-0" />
           </button>
 
           <p className="text-xs text-slate-400 mt-4">

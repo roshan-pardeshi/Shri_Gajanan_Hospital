@@ -294,9 +294,9 @@ const MainApp: React.FC = () => {
       
       {/* Toast Notification Banner */}
       {toastMessage && (
-        <div className="fixed top-24 right-5 z-50 bg-teal-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-teal-700 flex items-center gap-3 animate-in slide-in-from-top duration-300">
-          <div className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping" />
-          <span className="text-xs font-bold">{toastMessage}</span>
+        <div className="fixed top-20 sm:top-24 right-4 left-4 sm:left-auto sm:right-5 max-w-sm z-50 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-teal-500/30 flex items-center gap-3 animate-in slide-in-from-top duration-300">
+          <div className="w-2.5 h-2.5 rounded-full bg-teal-400 animate-ping shrink-0" />
+          <span className="text-xs font-bold leading-snug">{toastMessage}</span>
         </div>
       )}
 
@@ -311,7 +311,7 @@ const MainApp: React.FC = () => {
       />
 
       {/* Main Content Area */}
-      <main className="flex-1">
+      <main className="flex-1 min-w-0">
         
         {/* TAB 1: HOME */}
         {currentTab === 'home' && (

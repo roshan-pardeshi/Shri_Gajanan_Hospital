@@ -121,28 +121,28 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
       {/* 1. Top Bar: Emergency, OPD Timings, and Authorized Staff Gateway */}
-      <div className="bg-slate-900 text-slate-200 text-xs py-2 px-4 sm:px-6">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+      <div className="bg-slate-900 text-slate-200 text-xs py-1.5 sm:py-2 px-2.5 xs:px-4 sm:px-6">
+        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-1.5 sm:gap-3">
+          <div className="flex items-center flex-wrap gap-2.5 sm:gap-6 min-w-0">
             <a 
               href={`tel:${settings?.emergency_helpline || '+91 22 2845 9999'}`} 
-              className="flex items-center gap-1.5 font-semibold text-rose-400 hover:text-rose-300 transition-colors"
+              className="flex items-center gap-1.5 font-semibold text-rose-400 hover:text-rose-300 transition-colors text-[11px] sm:text-xs"
             >
-              <PhoneCall className="w-3.5 h-3.5 animate-pulse" />
+              <PhoneCall className="w-3.5 h-3.5 animate-pulse shrink-0" />
               <span>24/7 Emergency: {settings?.emergency_helpline || '+91 22 2845 9999'}</span>
             </a>
             <div className="hidden md:flex items-center gap-1.5 text-slate-400">
-              <Clock className="w-3.5 h-3.5 text-teal-400" />
+              <Clock className="w-3.5 h-3.5 text-teal-400 shrink-0" />
               <span>{settings?.operating_hours ? (settings.operating_hours.includes('OPD') ? settings.operating_hours : `OPD: ${settings.operating_hours}`) : 'OPD Timings: Mon - Sat 08:00 AM - 08:00 PM'}</span>
             </div>
             <div className="hidden lg:flex items-center gap-1 text-emerald-400 font-medium">
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
               <span>NABH Accredited & Ayushman PM-JAY Empanelled</span>
             </div>
           </div>
 
           {/* Secure Admin Access Gateway Link */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {isAdmin ? (
               <button
                 type="button"
@@ -167,24 +167,24 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* 2. Main Navigation Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-20">
+      <div className="relative max-w-7xl mx-auto px-2.5 xs:px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16 sm:h-20 gap-1.5 xs:gap-3">
           {/* Logo & Hospital Name */}
           <button 
             type="button"
             onClick={() => onNavigate('home')} 
-            className="flex items-center gap-2.5 sm:gap-3 text-left group shrink-0"
+            className="flex items-center gap-1.5 xs:gap-2.5 sm:gap-3 text-left group min-w-0"
           >
             <img 
               src={hospitalLogo} 
               alt="Shri Gajanan Hospital Logo" 
-              className="h-10 sm:h-12 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
+              className="h-8 xs:h-9 sm:h-12 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
             />
-            <div className="flex flex-col justify-center">
-              <span className="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors leading-tight">
+            <div className="flex flex-col justify-center min-w-0">
+              <span className="font-extrabold text-xs xs:text-sm sm:text-base md:text-lg tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors leading-tight truncate">
                 Shri Gajanan Hospital
               </span>
-              <p className="text-[10px] sm:text-xs font-semibold text-teal-700 tracking-wide leading-tight hidden sm:block">
+              <p className="text-[10px] sm:text-xs font-semibold text-teal-700 tracking-wide leading-tight hidden sm:block truncate">
                 Multispeciality Hospital & Heart Care
               </p>
             </div>
@@ -225,77 +225,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </span>
                 )}
               </button>
-
-              {/* Notification Dropdown Popover */}
-              {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-slate-900 text-sm">Notifications</h4>
-                      {unreadCount > 0 && (
-                        <span className="text-xs bg-teal-100 text-teal-700 font-semibold px-2 py-0.5 rounded-full">
-                          {unreadCount} new
-                        </span>
-                      )}
-                    </div>
-                    {unreadCount > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleMarkAllRead}
-                        className="text-xs text-teal-600 hover:text-teal-800 font-medium"
-                      >
-                        Mark all as read
-                      </button>
-                    )}
-                  </div>
-
-                  <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 my-2">
-                    {notifications.length === 0 ? (
-                      <div className="py-8 text-center text-slate-400 text-xs">
-                        No notifications yet.
-                      </div>
-                    ) : (
-                      notifications.map(n => (
-                        <div 
-                          key={n.id} 
-                          onClick={() => {
-                            if (!n.is_read) handleMarkOneRead(n.id);
-                            if (isAdmin && (n.type === 'appointment_request' || n.type === 'reschedule_request' || n.type === 'appointment_cancelled' || n.type === 'general')) {
-                              onNavigate('admin');
-                              setNotificationsOpen(false);
-                            }
-                          }}
-                          className={`py-3 px-2 rounded-xl flex gap-3 text-left transition-colors cursor-pointer hover:bg-slate-50 ${!n.is_read ? 'bg-teal-50/60 font-medium' : ''}`}
-                        >
-                          <div className="mt-0.5 shrink-0">
-                            {n.type === 'appointment_approved' ? (
-                              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            ) : n.type === 'appointment_rejected' || n.type === 'appointment_cancelled' ? (
-                              <AlertCircle className="w-4 h-4 text-rose-500" />
-                            ) : n.type === 'general' ? (
-                              <MessageSquare className="w-4 h-4 text-teal-600" />
-                            ) : (
-                              <Bell className="w-4 h-4 text-teal-500" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <p className="text-xs font-bold text-slate-900 truncate">{n.title}</p>
-                              {!n.is_read && (
-                                <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{n.message}</p>
-                            <span className="text-[10px] text-slate-400 mt-1 block">
-                              {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
 
             {/* User Dashboard / Auth Trigger */}
@@ -348,17 +277,17 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Mobile Menu Button & Notification Bell */}
-          <div className="flex sm:hidden items-center gap-1.5">
+          {/* Mobile Menu Button, Notification Bell & Compact Book Button */}
+          <div className="flex sm:hidden items-center gap-1 xs:gap-1.5 shrink-0">
             <button
               type="button"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               aria-label="View Notifications"
-              className="relative p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+              className="relative p-1.5 xs:p-2 rounded-lg text-slate-600 hover:bg-slate-100"
             >
-              <Bell className="w-5 h-5" />
+              <Bell className="w-4 h-4 xs:w-5 xs:h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-1 right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
+                <span className="absolute top-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-rose-500 text-white text-[9px] font-bold flex items-center justify-center">
                   {unreadCount}
                 </span>
               )}
@@ -366,19 +295,91 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               type="button"
               onClick={onOpenBooking}
-              className="px-3 py-1.5 rounded-lg text-xs font-bold bg-teal-600 text-white"
+              className="px-2 py-1 xs:px-2.5 xs:py-1.5 rounded-lg text-[11px] xs:text-xs font-bold bg-teal-600 hover:bg-teal-700 active:scale-95 text-white transition-all shrink-0"
             >
               Book
             </button>
             <button
               type="button"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-lg text-slate-600 hover:bg-slate-100"
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              className="p-1.5 xs:p-2 rounded-lg text-slate-600 hover:bg-slate-100 shrink-0"
             >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              {mobileMenuOpen ? <X className="w-5 h-5 xs:w-6 xs:h-6" /> : <Menu className="w-5 h-5 xs:w-6 xs:h-6" />}
             </button>
           </div>
         </div>
+
+        {/* Universal Notifications Dropdown Popover (Responsive for both Mobile & Desktop) */}
+        {notificationsOpen && (
+          <div className="absolute right-2 sm:right-6 top-full mt-1 w-[calc(100vw-16px)] max-w-sm sm:w-96 bg-white rounded-2xl shadow-xl border border-slate-200 p-4 z-50">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <h4 className="font-bold text-slate-900 text-sm">Notifications</h4>
+                {unreadCount > 0 && (
+                  <span className="text-xs bg-teal-100 text-teal-700 font-semibold px-2 py-0.5 rounded-full">
+                    {unreadCount} new
+                  </span>
+                )}
+              </div>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAllRead}
+                  className="text-xs text-teal-600 hover:text-teal-800 font-medium"
+                >
+                  Mark all as read
+                </button>
+              )}
+            </div>
+
+            <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 my-2">
+              {notifications.length === 0 ? (
+                <div className="py-8 text-center text-slate-400 text-xs">
+                  No notifications yet.
+                </div>
+              ) : (
+                notifications.map(n => (
+                  <div 
+                    key={n.id} 
+                    onClick={() => {
+                      if (!n.is_read) handleMarkOneRead(n.id);
+                      if (isAdmin && (n.type === 'appointment_request' || n.type === 'reschedule_request' || n.type === 'appointment_cancelled' || n.type === 'general')) {
+                        onNavigate('admin');
+                        setNotificationsOpen(false);
+                      }
+                    }}
+                    className={`py-3 px-2 rounded-xl flex gap-3 text-left transition-colors cursor-pointer hover:bg-slate-50 ${!n.is_read ? 'bg-teal-50/60 font-medium' : ''}`}
+                  >
+                    <div className="mt-0.5 shrink-0">
+                      {n.type === 'appointment_approved' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      ) : n.type === 'appointment_rejected' || n.type === 'appointment_cancelled' ? (
+                        <AlertCircle className="w-4 h-4 text-rose-500" />
+                      ) : n.type === 'general' ? (
+                        <MessageSquare className="w-4 h-4 text-teal-600" />
+                      ) : (
+                        <Bell className="w-4 h-4 text-teal-500" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <p className="text-xs font-bold text-slate-900 truncate">{n.title}</p>
+                        {!n.is_read && (
+                          <span className="w-2 h-2 rounded-full bg-teal-500 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-600 line-clamp-2 mt-0.5">{n.message}</p>
+                      <span className="text-[10px] text-slate-400 mt-1 block">
+                        {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Mobile Menu Dropdown */}

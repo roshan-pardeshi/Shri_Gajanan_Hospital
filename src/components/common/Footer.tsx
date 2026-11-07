@@ -195,9 +195,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, setti
                   {settings?.operating_hours ? (settings.operating_hours.includes('OPD') ? settings.operating_hours : `OPD: ${settings.operating_hours}`) : 'OPD: Mon - Sat 08:00 AM - 08:00 PM'}
                 </span>
               </div>
-              <div className="flex items-center gap-2.5">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <Mail className="w-4 h-4 text-teal-400 shrink-0" />
-                <a href={`mailto:${settings?.email || 'contact@smartcarehospital.org'}`} className="text-slate-400 hover:text-teal-300 text-xs">
+                <a href={`mailto:${settings?.email || 'contact@smartcarehospital.org'}`} className="text-slate-400 hover:text-teal-300 text-xs truncate">
                   {settings?.email || 'contact@smartcarehospital.org'}
                 </a>
               </div>
@@ -217,9 +217,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, setti
         </div>
 
         {/* Bottom Credits & Copyright */}
-        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4 text-center sm:text-left">
           <p>© {new Date().getFullYear()} SmartCare Hospital Portal - Shri Gajanan Multispeciality Hospital. All rights reserved.</p>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-wrap items-center justify-center sm:justify-end gap-x-5 gap-y-2">
             <button
               type="button"
               onClick={() => onNavigate('admin-login')}

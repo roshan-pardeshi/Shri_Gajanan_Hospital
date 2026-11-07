@@ -254,8 +254,8 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
   const minDateStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative my-8 animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-3 xs:p-4 overflow-y-auto">
+      <div className="bg-white rounded-3xl max-w-2xl w-full p-4 xs:p-6 sm:p-8 shadow-2xl relative my-auto animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header Bar */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -279,13 +279,13 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
         {/* Step Indicator (Only if not already confirmed) */}
         {!confirmedAppointment && (
           <div className="my-5">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-500 mb-2">
-              <span className={step >= 1 ? 'text-teal-700 font-bold' : ''}>1. Speciality</span>
-              <span className={step >= 2 ? 'text-teal-700 font-bold' : ''}>2. Doctor</span>
-              <span className={step >= 3 ? 'text-teal-700 font-bold' : ''}>3. Date</span>
-              <span className={step >= 4 ? 'text-teal-700 font-bold' : ''}>4. Slot</span>
-              <span className={step >= 5 ? 'text-teal-700 font-bold' : ''}>5. Details</span>
-              <span className={step >= 6 ? 'text-teal-700 font-bold' : ''}>6. Confirm</span>
+            <div className="flex items-center justify-between text-[11px] sm:text-xs font-semibold text-slate-500 mb-2">
+              <span className={step >= 1 ? 'text-teal-700 font-bold' : ''}>1. <span className="hidden min-[400px]:inline">Speciality</span></span>
+              <span className={step >= 2 ? 'text-teal-700 font-bold' : ''}>2. <span className="hidden min-[400px]:inline">Doctor</span></span>
+              <span className={step >= 3 ? 'text-teal-700 font-bold' : ''}>3. <span className="hidden min-[400px]:inline">Date</span></span>
+              <span className={step >= 4 ? 'text-teal-700 font-bold' : ''}>4. <span className="hidden min-[400px]:inline">Slot</span></span>
+              <span className={step >= 5 ? 'text-teal-700 font-bold' : ''}>5. <span className="hidden min-[400px]:inline">Details</span></span>
+              <span className={step >= 6 ? 'text-teal-700 font-bold' : ''}>6. <span className="hidden min-[400px]:inline">Confirm</span></span>
             </div>
             <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
               <div 

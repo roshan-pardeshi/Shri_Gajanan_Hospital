@@ -183,7 +183,7 @@ export const FeaturedDoctors: React.FC<FeaturedDoctorsProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Section Heading */}
         <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between mb-12 gap-4">
-          <div>
+          <div className="min-w-0 max-w-full">
             <span className="text-xs font-bold text-teal-600 uppercase tracking-wider">
               Our Medical Team
             </span>
@@ -201,7 +201,7 @@ export const FeaturedDoctors: React.FC<FeaturedDoctorsProps> = ({
           <button
             type="button"
             onClick={onViewAllDoctors}
-            className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-100/60 hover:bg-teal-100 px-4 py-2 rounded-xl transition-all"
+            className="flex items-center gap-1.5 text-xs sm:text-sm font-bold text-teal-700 hover:text-teal-800 bg-teal-100/60 hover:bg-teal-100 px-4 py-2 rounded-xl transition-all shrink-0"
           >
             <span>View All Doctors ({doctors.filter(d => d.is_active !== false).length})</span>
             <ArrowRight className="w-4 h-4" />
