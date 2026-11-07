@@ -41,11 +41,8 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
         [userId]
       );
     } else {
-      rows = await query<any[]>(
-        `SELECT * FROM notifications 
-         WHERE user_id IS NULL AND type = 'general'
-         ORDER BY created_at DESC LIMIT 20`
-      );
+      // Guest or unauthenticated visitors should not see hospital or feedback notifications
+      rows = [];
     }
 
     const formatted = rows.map(n => ({
@@ -125,7 +122,8 @@ router.put('/read-all', optionalAuth, async (req: Request, res: Response) => {
     } else if (userId) {
       await query('UPDATE notifications SET is_read = TRUE WHERE user_id = ?', [userId]);
     } else {
-      await query('UPDATE notifications SET is_read = TRUE WHERE user_id IS NULL');
+      // Non-admin / unauthenticated users cannot bulk mark admin notifications as read
+      return res.json({ success: true });
     }
 
     return res.json({ success: true });

@@ -20,6 +20,33 @@ import { dataService, isUUID } from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime12 } from '../../lib/utils';
 
+const isDoctorCurrentlyAvailable = (doc: Doctor): boolean => {
+  // 1. Must be active in the system
+  if (doc.is_active === false) {
+    return false;
+  }
+
+  // 2. Doctor availability status must be explicitly 'Available'
+  if (doc.availability_status !== 'Available') {
+    return false;
+  }
+
+  // 3. Must have active working schedule days
+  if (Array.isArray(doc.working_days) && doc.working_days.length === 0) {
+    return false;
+  }
+
+  // 4. Must not be on approved leave today
+  if (Array.isArray(doc.leave_dates) && doc.leave_dates.length > 0) {
+    const todayStr = new Date().toISOString().split('T')[0];
+    if (doc.leave_dates.includes(todayStr)) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 interface AppointmentBookingModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -102,6 +129,21 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
       setConfirmedAppointment(null);
     }
   }, [isOpen, preselectedDoctor]);
+
+  // Listen for doctor availability updates in real time
+  useEffect(() => {
+    const handleAvailabilityChange = () => {
+      dataService.getSpecialities().then(setSpecialities);
+      dataService.getDoctors().then(setDoctors);
+    };
+
+    window.addEventListener('doctors-updated', handleAvailabilityChange);
+    window.addEventListener('doctor-availability-changed', handleAvailabilityChange);
+    return () => {
+      window.removeEventListener('doctors-updated', handleAvailabilityChange);
+      window.removeEventListener('doctor-availability-changed', handleAvailabilityChange);
+    };
+  }, []);
 
   // Sync user info into form if logged in
   useEffect(() => {
@@ -197,6 +239,11 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
       setLoading(false);
     }
   };
+
+  // Filter specialities: show ONLY specialities that have at least one currently available doctor
+  const availableSpecialities = specialities.filter((spec) =>
+    doctors.some((doc) => doc.speciality_id === spec.id && isDoctorCurrentlyAvailable(doc))
+  );
 
   // Filter doctors for the chosen speciality in Step 2
   const availableDoctors = selectedSpeciality
@@ -333,26 +380,37 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                 <h4 className="text-sm font-bold text-slate-900">
                   Step 1: Select Medical Department
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
-                  {specialities.map((spec) => (
-                    <button
-                      key={spec.id}
-                      type="button"
-                      onClick={() => handleSelectSpeciality(spec)}
-                      className={`p-3.5 rounded-xl text-left border transition-all flex items-center justify-between ${
-                        selectedSpeciality?.id === spec.id
-                          ? 'border-teal-500 bg-teal-50/70 text-teal-900 ring-2 ring-teal-500/20'
-                          : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div>
-                        <p className="text-xs font-bold">{spec.name}</p>
-                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{spec.description}</p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
-                    </button>
-                  ))}
-                </div>
+                {availableSpecialities.length === 0 ? (
+                  <div className="py-12 px-4 text-center rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center">
+                      <Stethoscope className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-medium text-slate-600 max-w-sm mx-auto">
+                      Currently, no specialities have available doctors. Please try again later.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+                    {availableSpecialities.map((spec) => (
+                      <button
+                        key={spec.id}
+                        type="button"
+                        onClick={() => handleSelectSpeciality(spec)}
+                        className={`p-3.5 rounded-xl text-left border transition-all flex items-center justify-between ${
+                          selectedSpeciality?.id === spec.id
+                            ? 'border-teal-500 bg-teal-50/70 text-teal-900 ring-2 ring-teal-500/20'
+                            : 'border-slate-200 hover:border-teal-300 hover:bg-slate-50 text-slate-700'
+                        }`}
+                      >
+                        <div>
+                          <p className="text-xs font-bold">{spec.name}</p>
+                          <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">{spec.description}</p>
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 ml-2" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
@@ -414,7 +472,6 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                                 )}
                               </div>
                               <p className="text-[11px] text-slate-500">{doc.qualifications} • {doc.experience_years} Yrs</p>
-                              <span className="text-[10px] font-bold text-teal-700">Fee: ₹{doc.consultation_fee}</span>
                             </div>
                           </div>
 
@@ -707,7 +764,6 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                         <p className="text-slate-500">{selectedDoctor?.speciality_name}</p>
                       </div>
                     </div>
-                    <span className="font-bold text-teal-700">₹{selectedDoctor?.consultation_fee}</span>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">

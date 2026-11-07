@@ -14,6 +14,10 @@ import laboratoryRouter from './routes/laboratory';
 import schemesRouter from './routes/schemes';
 import settingsRouter from './routes/settings';
 import notificationsRouter from './routes/notifications';
+import aiChatRouter from './routes/aiChat';
+import sectionsRouter from './routes/sections';
+import reviewsRouter from './routes/reviews';
+import chiefDoctorRouter from './routes/chiefDoctor';
 
 // Ensure .env is loaded
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -52,6 +56,10 @@ app.use('/api/laboratory', laboratoryRouter);
 app.use('/api/schemes', schemesRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/notifications', notificationsRouter);
+app.use('/api/chat', aiChatRouter);
+app.use('/api/sections', sectionsRouter);
+app.use('/api/reviews', reviewsRouter);
+app.use('/api/chief-doctor', chiefDoctorRouter);
 
 // Global Error Handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

@@ -18,6 +18,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { dataService } from '../../services/dataService';
 import { Notification, HospitalSettings } from '../../types';
+import hospitalLogo from '../../assets/shri-gajanan-logo.png';
 
 interface HeaderProps {
   currentTab: string;
@@ -25,6 +26,7 @@ interface HeaderProps {
   onOpenBooking: () => void;
   onOpenAuth: () => void;
   settings?: HospitalSettings | null;
+  sectionsVisibility?: Record<string, boolean>;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -33,29 +35,61 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenBooking,
   onOpenAuth,
   settings,
+  sectionsVisibility,
 }) => {
   const { user, role, isAdmin, logout } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [internalVisibility, setInternalVisibility] = useState<Record<string, boolean>>(sectionsVisibility || {});
+
+  useEffect(() => {
+    if (sectionsVisibility && Object.keys(sectionsVisibility).length > 0) {
+      setInternalVisibility(sectionsVisibility);
+    } else {
+      dataService.getWebsiteSections().then(secs => {
+        const map: Record<string, boolean> = {};
+        for (const s of secs) map[s.id] = s.is_visible;
+        setInternalVisibility(map);
+      });
+    }
+
+    const handleSectionsUpdate = () => {
+      dataService.getWebsiteSections().then(secs => {
+        const map: Record<string, boolean> = {};
+        for (const s of secs) map[s.id] = s.is_visible;
+        setInternalVisibility(map);
+      });
+    };
+
+    window.addEventListener('website-sections-updated', handleSectionsUpdate);
+    return () => window.removeEventListener('website-sections-updated', handleSectionsUpdate);
+  }, [sectionsVisibility]);
 
   const fetchNotifications = async () => {
-    if (user) {
-      const list = await dataService.getNotifications(user.id, isAdmin);
+    if (isAdmin) {
+      const list = await dataService.getNotifications(user?.id, true);
+      setNotifications(list);
+      setUnreadCount(list.filter(n => !n.is_read).length);
+    } else if (user) {
+      const list = await dataService.getNotifications(user.id, false);
       setNotifications(list);
       setUnreadCount(list.filter(n => !n.is_read).length);
     } else {
-      const list = await dataService.getNotifications(undefined, false);
-      setNotifications(list);
-      setUnreadCount(list.filter(n => !n.is_read).length);
+      setNotifications([]);
+      setUnreadCount(0);
     }
   };
 
   useEffect(() => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 8000);
-    const handleNewNotif = () => fetchNotifications();
+    const handleNewNotif = () => {
+      if (isAdmin) {
+        fetchNotifications();
+      }
+    };
     window.addEventListener('new-hospital-notification', handleNewNotif);
     return () => {
       clearInterval(interval);
@@ -76,12 +110,12 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navLinks = [
     { id: 'home', label: 'Home' },
-    { id: 'doctors', label: 'Doctors & OPD' },
-    { id: 'specialities', label: 'Specialities' },
-    { id: 'laboratory', label: 'Laboratory & Tests' },
-    { id: 'schemes', label: 'Govt Health Schemes' },
-    { id: 'facilities', label: 'Hospital Facilities' },
-    { id: 'contact', label: 'Contact & Map' },
+    ...(internalVisibility.doctors !== false ? [{ id: 'doctors', label: 'Doctors & OPD' }] : []),
+    ...(internalVisibility.specialities !== false ? [{ id: 'specialities', label: 'Specialities' }] : []),
+    ...(internalVisibility.laboratory !== false ? [{ id: 'laboratory', label: 'Laboratory & Tests' }] : []),
+    ...(internalVisibility.schemes !== false ? [{ id: 'schemes', label: 'Govt Health Schemes' }] : []),
+    ...(internalVisibility.facilities !== false ? [{ id: 'facilities', label: 'Hospital Facilities' }] : []),
+    ...(internalVisibility.contact !== false ? [{ id: 'contact', label: 'Contact & Map' }] : []),
   ];
 
   return (
@@ -139,26 +173,19 @@ export const Header: React.FC<HeaderProps> = ({
           <button 
             type="button"
             onClick={() => onNavigate('home')} 
-            className="flex items-center gap-3 text-left group"
+            className="flex items-center gap-2.5 sm:gap-3 text-left group shrink-0"
           >
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-tr from-teal-600 to-teal-400 flex items-center justify-center text-white shadow-md shadow-teal-500/20 group-hover:scale-105 transition-transform">
-              <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
-                <path d="M12 5v6"/>
-                <path d="M9 8h6"/>
-              </svg>
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors">
-                  SmartCare
-                </span>
-                <span className="text-[10px] font-bold tracking-wider uppercase px-1.5 py-0.5 rounded bg-teal-100 text-teal-800">
-                  Portal
-                </span>
-              </div>
-              <p className="text-xs font-medium text-slate-500 tracking-normal">
-                {settings?.hospital_name || 'Shri Gajanan Multispeciality Hospital'}
+            <img 
+              src={hospitalLogo} 
+              alt="Shri Gajanan Hospital Logo" 
+              className="h-10 sm:h-12 w-auto object-contain shrink-0 group-hover:scale-105 transition-transform"
+            />
+            <div className="flex flex-col justify-center">
+              <span className="font-extrabold text-base sm:text-lg tracking-tight text-slate-900 group-hover:text-teal-700 transition-colors leading-tight">
+                Shri Gajanan Hospital
+              </span>
+              <p className="text-[10px] sm:text-xs font-semibold text-teal-700 tracking-wide leading-tight hidden sm:block">
+                Multispeciality Hospital & Heart Care
               </p>
             </div>
           </button>

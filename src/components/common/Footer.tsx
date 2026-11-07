@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Phone, 
   Mail, 
@@ -11,14 +11,40 @@ import {
 } from 'lucide-react';
 
 import { HospitalSettings } from '../../types';
+import { dataService } from '../../services/dataService';
 
 interface FooterProps {
   onNavigate: (tab: string) => void;
   onOpenBooking: () => void;
   settings?: HospitalSettings | null;
+  sectionsVisibility?: Record<string, boolean>;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, settings }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, settings, sectionsVisibility }) => {
+  const [internalVisibility, setInternalVisibility] = useState<Record<string, boolean>>(sectionsVisibility || {});
+
+  useEffect(() => {
+    if (sectionsVisibility && Object.keys(sectionsVisibility).length > 0) {
+      setInternalVisibility(sectionsVisibility);
+    } else {
+      dataService.getWebsiteSections().then(secs => {
+        const map: Record<string, boolean> = {};
+        for (const s of secs) map[s.id] = s.is_visible;
+        setInternalVisibility(map);
+      });
+    }
+
+    const handleSectionsUpdate = () => {
+      dataService.getWebsiteSections().then(secs => {
+        const map: Record<string, boolean> = {};
+        for (const s of secs) map[s.id] = s.is_visible;
+        setInternalVisibility(map);
+      });
+    };
+
+    window.addEventListener('website-sections-updated', handleSectionsUpdate);
+    return () => window.removeEventListener('website-sections-updated', handleSectionsUpdate);
+  }, [sectionsVisibility]);
   return (
     <footer className="bg-slate-900 text-slate-300 pt-16 pb-8 border-t border-slate-800">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
@@ -70,46 +96,54 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenBooking, setti
                   <span>Home</span>
                 </button>
               </li>
-              <li>
-                <button 
-                  type="button" 
-                  onClick={() => onNavigate('doctors')} 
-                  className="hover:text-teal-400 flex items-center gap-1 transition-colors"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Find Doctors & OPD</span>
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  onClick={() => onNavigate('specialities')} 
-                  className="hover:text-teal-400 flex items-center gap-1 transition-colors"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Specialities</span>
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  onClick={() => onNavigate('laboratory')} 
-                  className="hover:text-teal-400 flex items-center gap-1 transition-colors"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Laboratory & Tests</span>
-                </button>
-              </li>
-              <li>
-                <button 
-                  type="button" 
-                  onClick={() => onNavigate('schemes')} 
-                  className="hover:text-teal-400 flex items-center gap-1 transition-colors"
-                >
-                  <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
-                  <span>Govt Health Schemes</span>
-                </button>
-              </li>
+              {internalVisibility.doctors !== false && (
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => onNavigate('doctors')} 
+                    className="hover:text-teal-400 flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
+                    <span>Find Doctors & OPD</span>
+                  </button>
+                </li>
+              )}
+              {internalVisibility.specialities !== false && (
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => onNavigate('specialities')} 
+                    className="hover:text-teal-400 flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
+                    <span>Specialities</span>
+                  </button>
+                </li>
+              )}
+              {internalVisibility.laboratory !== false && (
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => onNavigate('laboratory')} 
+                    className="hover:text-teal-400 flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
+                    <span>Laboratory & Tests</span>
+                  </button>
+                </li>
+              )}
+              {internalVisibility.schemes !== false && (
+                <li>
+                  <button 
+                    type="button" 
+                    onClick={() => onNavigate('schemes')} 
+                    className="hover:text-teal-400 flex items-center gap-1 transition-colors"
+                  >
+                    <ChevronRight className="w-3.5 h-3.5 text-teal-500" />
+                    <span>Govt Health Schemes</span>
+                  </button>
+                </li>
+              )}
               <li>
                 <button 
                   type="button" 

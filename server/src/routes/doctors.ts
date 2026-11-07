@@ -39,6 +39,18 @@ router.get('/', async (req: Request, res: Response) => {
 
     const doctors = await query<any[]>(sql, params);
 
+    // Fetch approved leave dates for doctors
+    const leaveRows = await query<any[]>('SELECT doctor_id, leave_date FROM doctor_leave_dates');
+    const leavesMap = new Map<string, string[]>();
+    for (const row of leaveRows) {
+      const arr = leavesMap.get(row.doctor_id) || [];
+      const dateStr = typeof row.leave_date === 'string' 
+        ? row.leave_date.split('T')[0] 
+        : (row.leave_date?.toISOString?.()?.split('T')[0] || String(row.leave_date));
+      arr.push(dateStr);
+      leavesMap.set(row.doctor_id, arr);
+    }
+
     // Parse JSON fields if necessary
     const formatted = doctors.map(d => ({
       ...d,
@@ -46,6 +58,7 @@ router.get('/', async (req: Request, res: Response) => {
       consultation_fee: Number(d.consultation_fee),
       rating: Number(d.rating),
       is_active: Boolean(d.is_active),
+      leave_dates: leavesMap.get(d.id) || [],
     }));
 
     return res.json(formatted);
@@ -72,12 +85,16 @@ router.get('/:id', async (req: Request, res: Response) => {
     }
 
     const d = doctors[0];
+    const leaveRows = await query<any[]>('SELECT leave_date FROM doctor_leave_dates WHERE doctor_id = ?', [id]);
+    const leaveDates = leaveRows.map((r: any) => typeof r.leave_date === 'string' ? r.leave_date.split('T')[0] : (r.leave_date?.toISOString?.()?.split('T')[0] || String(r.leave_date)));
+
     return res.json({
       ...d,
       working_days: typeof d.working_days === 'string' ? JSON.parse(d.working_days) : (d.working_days || []),
       consultation_fee: Number(d.consultation_fee),
       rating: Number(d.rating),
       is_active: Boolean(d.is_active),
+      leave_dates: leaveDates,
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Failed to fetch doctor' });
@@ -116,11 +133,12 @@ router.get('/:id/slots', async (req: Request, res: Response) => {
     const endStr = doctor.working_hours_end || '17:00:00';
 
     // 3. Fetch active booked appointments on this date
+    // Active reservations are Pending, Approved, Rescheduled. Completed, Cancelled, and Rejected release the slot.
     const bookedRows = await query<any[]>(
       `SELECT start_time FROM appointments
        WHERE doctor_id = ? 
          AND appointment_date = ? 
-         AND status NOT IN ('Rejected', 'Cancelled')`,
+         AND status NOT IN ('Rejected', 'Cancelled', 'Completed')`,
       [id, dateStr]
     );
 
@@ -137,9 +155,12 @@ router.get('/:id/slots', async (req: Request, res: Response) => {
     const [endH, endM] = endStr.split(':').map(Number);
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(now);
     const isToday = dateStr === todayStr;
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+    const nowParts = new Intl.DateTimeFormat('en-US', { timeZone: 'Asia/Kolkata', hour: 'numeric', minute: 'numeric', hour12: false }).formatToParts(now);
+    const currentH = Number(nowParts.find(p => p.type === 'hour')?.value || now.getHours());
+    const currentM = Number(nowParts.find(p => p.type === 'minute')?.value || now.getMinutes());
+    const currentMinutes = currentH * 60 + currentM;
 
     let cursor = startH * 60 + startM;
     const endLimit = endH * 60 + endM;
@@ -150,7 +171,7 @@ router.get('/:id/slots', async (req: Request, res: Response) => {
       const timeFormatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
       const isBooked = bookedTimes.has(timeFormatted);
-      const isPast = isToday && cursor <= currentMinutes;
+      const isPast = (isToday && cursor <= currentMinutes) || (dateStr < todayStr);
 
       slots.push({
         time: timeFormatted,

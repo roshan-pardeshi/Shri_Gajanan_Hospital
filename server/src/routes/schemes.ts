@@ -170,9 +170,70 @@ router.put('/:id', authenticateToken, requireAdmin, async (req: Request, res: Re
 router.delete('/:id', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Valid scheme ID is required' });
+    }
+
+    // 1. Verify scheme exists in database
+    const existing = await query<any[]>('SELECT id, name FROM health_schemes WHERE id = ?', [id]);
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Health scheme not found or already deleted' });
+    }
+
+    // 2. Check relational references in database foreign keys
+    try {
+      const fkUsage = await query<any[]>(
+        `SELECT TABLE_NAME, COLUMN_NAME 
+         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
+         WHERE REFERENCED_TABLE_NAME = 'health_schemes' 
+           AND TABLE_SCHEMA = DATABASE()`
+      );
+
+      for (const fk of fkUsage) {
+        const rows = await query<any[]>(
+          `SELECT COUNT(*) as count FROM \`${fk.TABLE_NAME}\` WHERE \`${fk.COLUMN_NAME}\` = ?`,
+          [id]
+        );
+        if (rows[0]?.count > 0) {
+          return res.status(409).json({
+            error: `This health scheme cannot be permanently deleted because it has associated records in ${fk.TABLE_NAME}. You can mark it 'Not Empanelled' or 'Under Verification' instead.`
+          });
+        }
+      }
+    } catch (schemaErr) {
+      console.warn('Foreign key inspection warning:', schemaErr);
+    }
+
+    // 3. Check potential historical application or patient eligibility records
+    try {
+      const checkTables = ['scheme_applications', 'patient_schemes', 'patient_eligibility_records', 'scheme_eligibility'];
+      for (const tableName of checkTables) {
+        const hasTable = await query<any[]>(
+          `SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+          [tableName]
+        );
+        if (hasTable.length > 0) {
+          const refs = await query<any[]>(`SELECT COUNT(*) as count FROM \`${tableName}\` WHERE scheme_id = ?`, [id]);
+          if (refs[0]?.count > 0) {
+            return res.status(409).json({
+              error: 'This health scheme cannot be permanently deleted because it has associated historical patient or application records. You can archive or mark it Under Verification instead.'
+            });
+          }
+        }
+      }
+    } catch (tblErr) {
+      console.warn('Table reference inspection warning:', tblErr);
+    }
+
+    // 4. Safe delete
     await query('DELETE FROM health_schemes WHERE id = ?', [id]);
-    return res.json({ success: true, message: 'Health scheme deleted successfully' });
+    return res.json({ success: true, message: `Health scheme "${existing[0].name}" deleted successfully` });
   } catch (err: any) {
+    if (err.errno === 1451 || err.code === 'ER_ROW_IS_REFERENCED_2' || err.code === 'ER_ROW_IS_REFERENCED') {
+      return res.status(409).json({
+        error: 'This health scheme is referenced by existing patient records and cannot be permanently deleted. You can mark it Under Verification or unpublish it instead.'
+      });
+    }
     return res.status(500).json({ error: err.message || 'Failed to delete health scheme' });
   }
 });

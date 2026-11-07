@@ -5,7 +5,8 @@ import {
   MapPin, 
   Clock, 
   Send, 
-  CheckCircle2 
+  CheckCircle2,
+  Navigation
 } from 'lucide-react';
 import { HospitalSettings } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -152,21 +153,44 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSe
               </div>
             </div>
 
-            {/* Interactive Map Card Preview */}
-            <div className="mt-8 rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 h-48 relative flex items-center justify-center">
-              <div 
-                className="absolute inset-0 bg-cover bg-center opacity-70"
-                style={{
-                  backgroundImage: `url('https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80&w=800')`
-                }}
-              />
-              <div className="absolute inset-0 bg-slate-900/30 backdrop-blur-[1px]" />
-              <div className="relative z-10 bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-xl shadow-lg border border-white text-center">
-                <div className="flex items-center gap-2 text-teal-700 font-bold text-xs">
-                  <MapPin className="w-4 h-4 text-rose-500" />
-                  <span>{settings?.hospital_name || 'Shri Gajanan Multispeciality Hospital'}</span>
+            {/* Interactive Google Map Section */}
+            <div className="mt-6 space-y-3">
+              <div className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-100 h-64 sm:h-72 relative shadow-inner">
+                <iframe
+                  title="Shri Gajanan Hospital Location Map"
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent('Shri Gajanan Hospital, Jayhind Colony, Indrasen Chowk, Deopur, Dhule, Maharashtra 424001')}&t=&z=16&ie=UTF8&iwloc=&output=embed`}
+                  className="w-full h-full border-0"
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+
+              {/* Get Directions Action Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-200/80">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center shrink-0">
+                    <MapPin className="w-4 h-4 text-rose-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-900 truncate">
+                      Shri Gajanan Hospital, Deopur
+                    </p>
+                    <p className="text-[11px] text-slate-500 truncate">
+                      Indrasen Chowk, Jayhind Colony, Dhule – 424001
+                    </p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">{fullAddress}</p>
+
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent('Shri Gajanan Hospital, Jayhind Colony, Indrasen Chowk, Deopur, Dhule, Maharashtra 424001')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white shadow-xs hover:shadow-md transition-all active:scale-95 shrink-0"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span>Get Directions</span>
+                </a>
               </div>
             </div>
           </div>

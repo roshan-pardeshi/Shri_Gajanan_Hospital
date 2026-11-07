@@ -10,29 +10,31 @@ import {
 interface QuickAccessCardsProps {
   onNavigate: (tab: string) => void;
   onOpenBooking: () => void;
+  sectionsVisibility?: Record<string, boolean>;
 }
 
 export const QuickAccessCards: React.FC<QuickAccessCardsProps> = ({
   onNavigate,
   onOpenBooking,
+  sectionsVisibility,
 }) => {
   const cards = [
-    {
+    ...(sectionsVisibility?.doctors !== false ? [{
       title: 'Doctors & OPD',
       desc: 'Explore 60+ verified senior specialists, doctor profiles, OPD schedules, and fees.',
       icon: UserCheck,
       color: 'teal',
       badge: 'Verified Faculty',
       action: () => onNavigate('doctors'),
-    },
-    {
+    }] : []),
+    ...(sectionsVisibility?.specialities !== false ? [{
       title: 'Medical Specialities',
       desc: 'World-class departments including Cardiology, Orthopaedics, Neurology, & Oncology.',
       icon: Stethoscope,
       color: 'sky',
       badge: '18+ Centers',
       action: () => onNavigate('specialities'),
-    },
+    }] : []),
     {
       title: 'Book Appointment',
       desc: 'Pick your preferred date, consult timings, and receive instant booking reference.',
@@ -41,14 +43,14 @@ export const QuickAccessCards: React.FC<QuickAccessCardsProps> = ({
       badge: 'Instant Slot',
       action: onOpenBooking,
     },
-    {
+    ...(sectionsVisibility?.schemes !== false ? [{
       title: 'Government Schemes',
       desc: 'Avail 100% cashless healthcare under Ayushman Bharat PM-JAY & Maharashtra MJPJAY.',
       icon: HeartHandshake,
       color: 'amber',
       badge: 'Cashless Up to ₹5L',
       action: () => onNavigate('schemes'),
-    },
+    }] : []),
   ];
 
   return (

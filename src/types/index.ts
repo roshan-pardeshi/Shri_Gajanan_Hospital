@@ -89,6 +89,9 @@ export interface Appointment {
   requested_reschedule_date?: string;
   requested_reschedule_time?: string;
   reschedule_reason?: string;
+  booking_source?: 'ONLINE' | 'OFFLINE';
+  patient_age?: number;
+  patient_gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say';
   created_at: string;
   updated_at: string;
 }
@@ -190,4 +193,75 @@ export interface LaboratorySettings {
   appointment_required: boolean;
   updated_at?: string;
 }
+
+export interface WebsiteSection {
+  id: string;
+  name: string;
+  description?: string;
+  is_visible: boolean;
+  display_order?: number;
+  updated_at?: string;
+}
+
+export type ReviewStatus = 'Pending' | 'Approved' | 'Rejected';
+
+export interface PatientReview {
+  id: string;
+  patient_id?: string;
+  patient_name?: string;
+  patient_display_name?: string;
+  patient_email?: string;
+  patient_phone?: string;
+  doctor_id: string;
+  doctor_name: string;
+  doctor_photo?: string;
+  speciality_name?: string;
+  appointment_id?: string;
+  appointment_reference?: string;
+  appointment_date?: string;
+  rating: number;
+  review_title?: string | null;
+  review_message: string;
+  status: ReviewStatus;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface ReviewStats {
+  total_reviews?: number;
+  pending_reviews?: number;
+  approved_reviews?: number;
+  rejected_reviews?: number;
+  average_rating: number;
+  total_approved_reviews?: number;
+}
+
+export interface EligibleAppointmentForReview {
+  appointment_id: string;
+  reference_number: string;
+  appointment_date: string;
+  start_time: string;
+  doctor_id: string;
+  doctor_name: string;
+  doctor_photo?: string;
+  speciality_name?: string;
+  existing_review_id?: string | null;
+  existing_review_status?: ReviewStatus | null;
+}
+
+export interface ChiefDoctorProfile {
+  id: string;
+  doctor_id?: string | null;
+  name: string;
+  designation: string;
+  qualifications: string;
+  speciality: string;
+  experience_years: number;
+  photo_url?: string | null;
+  introduction: string;
+  welcome_message: string;
+  updated_at?: string;
+  linked_doctor?: Doctor | null;
+}
+
 

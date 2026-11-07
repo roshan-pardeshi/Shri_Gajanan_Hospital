@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/common/Header';
 import { Footer } from './components/common/Footer';
 import { HeroSection } from './components/home/HeroSection';
+import { ChiefDoctorSection } from './components/home/ChiefDoctorSection';
 import { QuickAccessCards } from './components/home/QuickAccessCards';
 import { FeaturedDoctors } from './components/home/FeaturedDoctors';
 import { SpecialitiesSection } from './components/home/SpecialitiesSection';
@@ -19,6 +20,10 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { AdminLoginPage } from './components/admin/AdminLoginPage';
 import { AppointmentBookingModal } from './components/booking/AppointmentBookingModal';
 import { AuthModal } from './components/auth/AuthModal';
+import { PatientReviewsSection } from './components/home/PatientReviewsSection';
+import { PatientReviewModal } from './components/reviews/PatientReviewModal';
+import { SmartCareAIButton } from './components/ai/SmartCareAIButton';
+import { SmartCareAIChat } from './components/ai/SmartCareAIChat';
 import { dataService } from './services/dataService';
 import { Doctor, HealthScheme, Speciality, Appointment, LaboratorySettings, HospitalSettings } from './types';
 import { 
@@ -28,7 +33,12 @@ import {
   Loader2, 
   Lock, 
   Home, 
-  LogOut 
+  LogOut,
+  HeartHandshake,
+  Stethoscope,
+  Microscope,
+  Building,
+  Phone
 } from 'lucide-react';
 
 const getTabFromPath = (path: string): string => {
@@ -77,10 +87,15 @@ const MainApp: React.FC = () => {
   const [schemes, setSchemes] = useState<HealthScheme[]>([]);
   const [laboratorySettings, setLaboratorySettings] = useState<LaboratorySettings | null>(null);
   const [hospitalSettings, setHospitalSettings] = useState<HospitalSettings | null>(null);
+  const [sectionsVisibility, setSectionsVisibility] = useState<Record<string, boolean>>({});
   
   // Modals
   const [isBookingModalOpen, setIsBookingModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isAIChatOpen, setIsAIChatOpen] = useState<boolean>(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+  const [reviewPreselectedDoctorId, setReviewPreselectedDoctorId] = useState<string | undefined>();
+  const [reviewPreselectedAppointmentId, setReviewPreselectedAppointmentId] = useState<string | undefined>();
   const [selectedDoctorForBooking, setSelectedDoctorForBooking] = useState<Doctor | null>(null);
   const [selectedSpecialityFilter, setSelectedSpecialityFilter] = useState<string | undefined>(undefined);
   const [selectedSchemeForDetail, setSelectedSchemeForDetail] = useState<HealthScheme | null>(null);
@@ -128,6 +143,11 @@ const MainApp: React.FC = () => {
     dataService.getDoctors().then(setDoctors);
     dataService.getLaboratorySettings().then(setLaboratorySettings);
     dataService.getHospitalSettings().then(setHospitalSettings);
+    dataService.getWebsiteSections().then(secs => {
+      const map: Record<string, boolean> = {};
+      for (const s of secs) map[s.id] = s.is_visible;
+      setSectionsVisibility(map);
+    });
   }, [currentTab]);
 
   useEffect(() => {
@@ -136,6 +156,18 @@ const MainApp: React.FC = () => {
     dataService.getDoctors().then(setDoctors);
     dataService.getHealthSchemes().then(setSchemes);
     dataService.getLaboratorySettings().then(setLaboratorySettings);
+
+    const fetchSections = () => {
+      dataService.getWebsiteSections().then(secs => {
+        const map: Record<string, boolean> = {};
+        for (const s of secs) map[s.id] = s.is_visible;
+        setSectionsVisibility(map);
+      });
+    };
+    fetchSections();
+
+    const handleSectionsUpdate = () => fetchSections();
+    window.addEventListener('website-sections-updated', handleSectionsUpdate);
 
     const handleSchemesUpdate = (e: any) => {
       if (e.detail && Array.isArray(e.detail)) {
@@ -181,6 +213,7 @@ const MainApp: React.FC = () => {
       window.removeEventListener('doctors-updated', handleDoctorsUpdate);
       window.removeEventListener('laboratory-settings-updated', handleLabSettingsUpdate);
       window.removeEventListener('hospital-settings-updated', handleHospitalSettingsUpdate);
+      window.removeEventListener('website-sections-updated', handleSectionsUpdate);
     };
   }, []);
 
@@ -224,6 +257,7 @@ const MainApp: React.FC = () => {
           onOpenBooking={handleOpenBookingGeneral}
           onOpenAuth={() => setIsAuthModalOpen(true)}
           settings={hospitalSettings}
+          sectionsVisibility={sectionsVisibility}
         />
         <main className="flex-1">
           <AdminLoginPage
@@ -236,6 +270,7 @@ const MainApp: React.FC = () => {
           onNavigate={navigateTo}
           onOpenBooking={handleOpenBookingGeneral}
           settings={hospitalSettings}
+          sectionsVisibility={sectionsVisibility}
         />
         <AppointmentBookingModal
           isOpen={isBookingModalOpen}
@@ -272,6 +307,7 @@ const MainApp: React.FC = () => {
         onOpenBooking={handleOpenBookingGeneral}
         onOpenAuth={() => setIsAuthModalOpen(true)}
         settings={hospitalSettings}
+        sectionsVisibility={sectionsVisibility}
       />
 
       {/* Main Content Area */}
@@ -285,91 +321,228 @@ const MainApp: React.FC = () => {
               onExploreSchemes={() => navigateTo('schemes')}
               onNavigateContact={() => navigateTo('contact')}
             />
-            <QuickAccessCards
-              onNavigate={navigateTo}
-              onOpenBooking={handleOpenBookingGeneral}
-            />
-            <FeaturedDoctors
-              doctors={doctors}
-              onSelectDoctor={handleOpenBookingWithDoctor}
-              onViewAllDoctors={() => navigateTo('doctors')}
-            />
-            <SpecialitiesSection
-              specialities={specialities}
-              onSelectSpeciality={handleSpecialitySelect}
-            />
+            {sectionsVisibility.chief_doctor !== false && (
+              <ChiefDoctorSection
+                onOpenBookingGeneral={handleOpenBookingGeneral}
+                onOpenBookingWithDoctor={handleOpenBookingWithDoctor}
+                onNavigateContact={() => navigateTo('contact')}
+              />
+            )}
+            {sectionsVisibility.quick_access !== false && (
+              <QuickAccessCards
+                onNavigate={navigateTo}
+                onOpenBooking={handleOpenBookingGeneral}
+                sectionsVisibility={sectionsVisibility}
+              />
+            )}
+            {sectionsVisibility.doctors !== false && (
+              <FeaturedDoctors
+                doctors={doctors}
+                onSelectDoctor={handleOpenBookingWithDoctor}
+                onViewAllDoctors={() => navigateTo('doctors')}
+              />
+            )}
+            {sectionsVisibility.specialities !== false && (
+              <SpecialitiesSection
+                specialities={specialities}
+                onSelectSpeciality={handleSpecialitySelect}
+              />
+            )}
             {/* PART B: Dedicated Laboratory & Blood Testing Services Card Section */}
-            <LaboratoryCardSection
-              onViewAllTests={() => navigateTo('laboratory')}
-              onContactLab={() => navigateTo('contact')}
-              settings={laboratorySettings}
-            />
-            <HowItWorks onOpenBooking={handleOpenBookingGeneral} />
-            <SchemeHighlights
-              schemes={schemes}
-              onExploreSchemes={() => navigateTo('schemes')}
-              onSelectScheme={handleSchemeSelect}
-            />
-            <HospitalFacilities />
-            <ContactSection settings={hospitalSettings} />
+            {sectionsVisibility.laboratory !== false && (
+              <LaboratoryCardSection
+                onViewAllTests={() => navigateTo('laboratory')}
+                onContactLab={() => navigateTo('contact')}
+                settings={laboratorySettings}
+              />
+            )}
+            {sectionsVisibility.how_it_works !== false && (
+              <HowItWorks onOpenBooking={handleOpenBookingGeneral} />
+            )}
+            {sectionsVisibility.schemes !== false && (
+              <SchemeHighlights
+                schemes={schemes}
+                onExploreSchemes={() => navigateTo('schemes')}
+                onSelectScheme={handleSchemeSelect}
+              />
+            )}
+            {sectionsVisibility.facilities !== false && (
+              <HospitalFacilities />
+            )}
+            {sectionsVisibility.testimonials !== false && (
+              <PatientReviewsSection
+                onOpenReviewModal={() => {
+                  setReviewPreselectedDoctorId(undefined);
+                  setReviewPreselectedAppointmentId(undefined);
+                  setIsReviewModalOpen(true);
+                }}
+              />
+            )}
+            {sectionsVisibility.contact !== false && (
+              <ContactSection settings={hospitalSettings} />
+            )}
           </div>
         )}
 
         {/* TAB 2: DOCTORS DIRECTORY */}
         {currentTab === 'doctors' && (
-          <DoctorDirectory
-            doctors={doctors}
-            specialities={specialities}
-            selectedSpecialityId={selectedSpecialityFilter}
-            onSelectDoctorForBooking={handleOpenBookingWithDoctor}
-          />
+          sectionsVisibility.doctors === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <Stethoscope className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Doctor Directory Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <DoctorDirectory
+              doctors={doctors}
+              specialities={specialities}
+              selectedSpecialityId={selectedSpecialityFilter}
+              onSelectDoctorForBooking={handleOpenBookingWithDoctor}
+            />
+          )
         )}
 
         {/* TAB 3: SPECIALITIES */}
         {currentTab === 'specialities' && (
-          <div className="py-12 bg-white">
-            <SpecialitiesSection
-              specialities={specialities}
-              onSelectSpeciality={handleSpecialitySelect}
-            />
-            <FeaturedDoctors
-              doctors={doctors}
-              onSelectDoctor={handleOpenBookingWithDoctor}
-              onViewAllDoctors={() => navigateTo('doctors')}
-            />
-          </div>
+          sectionsVisibility.specialities === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <Building className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Medical Specialities Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <div className="py-12 bg-white">
+              <SpecialitiesSection
+                specialities={specialities}
+                onSelectSpeciality={handleSpecialitySelect}
+              />
+              {sectionsVisibility.doctors !== false && (
+                <FeaturedDoctors
+                  doctors={doctors}
+                  onSelectDoctor={handleOpenBookingWithDoctor}
+                  onViewAllDoctors={() => navigateTo('doctors')}
+                />
+              )}
+            </div>
+          )
         )}
 
         {/* TAB 4: GOVERNMENT HEALTH SCHEMES */}
         {currentTab === 'schemes' && (
-          <SchemesPage
-            schemes={schemes}
-            selectedScheme={selectedSchemeForDetail}
-            onClearSelectedScheme={() => setSelectedSchemeForDetail(null)}
-          />
+          sectionsVisibility.schemes === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <HeartHandshake className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Government Health Schemes Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <SchemesPage
+              schemes={schemes}
+              selectedScheme={selectedSchemeForDetail}
+              onClearSelectedScheme={() => setSelectedSchemeForDetail(null)}
+            />
+          )
         )}
 
         {/* TAB 5: DEDICATED LABORATORY PAGE */}
         {currentTab === 'laboratory' && (
-          <LaboratoryPage
-            onOpenBooking={handleOpenBookingGeneral}
-            onNavigateHome={() => navigateTo('home')}
-          />
+          sectionsVisibility.laboratory === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <Microscope className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Laboratory Services Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <LaboratoryPage
+              onOpenBooking={handleOpenBookingGeneral}
+              onNavigateHome={() => navigateTo('home')}
+            />
+          )
         )}
 
         {/* TAB 6: HOSPITAL FACILITIES */}
         {currentTab === 'facilities' && (
-          <div className="py-10">
-            <HospitalFacilities />
-            <ContactSection settings={hospitalSettings} />
-          </div>
+          sectionsVisibility.facilities === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <Building className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Hospital Facilities Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <div className="py-10">
+              <HospitalFacilities />
+              {sectionsVisibility.contact !== false && <ContactSection settings={hospitalSettings} />}
+            </div>
+          )
         )}
 
         {/* TAB 7: CONTACT & MAP */}
         {currentTab === 'contact' && (
-          <div className="py-10">
-            <ContactSection settings={hospitalSettings} />
-          </div>
+          sectionsVisibility.contact === false ? (
+            <div className="py-24 text-center max-w-lg mx-auto px-4">
+              <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-4">
+                <Phone className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">Contact Section Currently Unavailable</h2>
+              <p className="text-xs text-slate-500 mt-2">This section has been temporarily hidden by the hospital administrator.</p>
+              <button
+                type="button"
+                onClick={() => navigateTo('home')}
+                className="mt-6 px-6 py-2.5 rounded-xl bg-teal-600 text-white font-bold text-xs hover:bg-teal-700"
+              >
+                Return to Homepage
+              </button>
+            </div>
+          ) : (
+            <div className="py-10">
+              <ContactSection settings={hospitalSettings} />
+            </div>
+          )
         )}
 
         {/* TAB 8: PATIENT DASHBOARD */}
@@ -380,6 +553,11 @@ const MainApp: React.FC = () => {
             doctors={doctors}
             onSelectScheme={handleSchemeSelect}
             onNavigate={(tab) => navigateTo(tab)}
+            onOpenReviewModal={(docId, aptId) => {
+              setReviewPreselectedDoctorId(docId);
+              setReviewPreselectedAppointmentId(aptId);
+              setIsReviewModalOpen(true);
+            }}
           />
         )}
 
@@ -499,6 +677,7 @@ const MainApp: React.FC = () => {
         onNavigate={navigateTo}
         onOpenBooking={handleOpenBookingGeneral}
         settings={hospitalSettings}
+        sectionsVisibility={sectionsVisibility}
       />
 
       {/* Appointment Booking Wizard Modal */}
@@ -517,6 +696,35 @@ const MainApp: React.FC = () => {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
       />
+
+      {/* Patient Review & Feedback Modal */}
+      <PatientReviewModal
+        isOpen={isReviewModalOpen}
+        onClose={() => {
+          setIsReviewModalOpen(false);
+          setReviewPreselectedDoctorId(undefined);
+          setReviewPreselectedAppointmentId(undefined);
+        }}
+        preselectedDoctorId={reviewPreselectedDoctorId}
+        preselectedAppointmentId={reviewPreselectedAppointmentId}
+        onOpenLogin={() => setIsAuthModalOpen(true)}
+      />
+
+      {/* SmartCare 24/7 AI Hospital Assistant */}
+      {currentTab !== 'admin' && currentTab !== 'admin-login' && (
+        <>
+          <SmartCareAIButton
+            isOpen={isAIChatOpen}
+            onClick={() => setIsAIChatOpen((prev) => !prev)}
+          />
+          <SmartCareAIChat
+            isOpen={isAIChatOpen}
+            onClose={() => setIsAIChatOpen(false)}
+            onOpenBooking={handleOpenBookingGeneral}
+            onNavigate={navigateTo}
+          />
+        </>
+      )}
 
     </div>
   );

@@ -30,8 +30,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
   return (
     <section className="relative w-full bg-slate-950 overflow-hidden">
       {/* Main Banner Container - Aspect ratio matched to 1672x851 (top duplicate navbar clipped off) */}
-      <div 
-        className="relative w-full overflow-hidden select-none bg-slate-900" 
+      <div
+        className="relative w-full overflow-hidden select-none bg-slate-900"
         style={{ aspectRatio: '1672 / 851' }}
       >
         {/* Banner image shifted up by 10.57% to cleanly eliminate the baked-in duplicate navigation bar */}
@@ -58,7 +58,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             className="absolute rounded-full cursor-pointer transition-all duration-150 hover:bg-white/20 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/80"
             style={{
               left: '7.5%',
-              top: '64.0%',
+              top: '66.0%',
               width: '18.8%',
               height: '7.0%',
             }}
@@ -73,7 +73,7 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             className="absolute rounded-full cursor-pointer transition-all duration-150 hover:bg-white/20 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white/80"
             style={{
               left: '27.9%',
-              top: '64.0%',
+              top: '66.0%',
               width: '12.9%',
               height: '7.0%',
             }}

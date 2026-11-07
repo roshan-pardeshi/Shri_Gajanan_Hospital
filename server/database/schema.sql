@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   full_name VARCHAR(255) NOT NULL,
   mobile_number VARCHAR(50) NOT NULL,
   date_of_birth DATE NULL,
+  age INT NULL,
   gender ENUM('Male', 'Female', 'Other', 'Prefer not to say') NULL,
   address TEXT NULL,
   role ENUM('patient', 'admin', 'doctor', 'staff') NOT NULL DEFAULT 'patient',
@@ -125,8 +126,9 @@ CREATE TABLE IF NOT EXISTS appointments (
   requested_reschedule_date DATE NULL,
   requested_reschedule_time TIME NULL,
   reschedule_reason TEXT NULL,
+  booking_source VARCHAR(20) NOT NULL DEFAULT 'ONLINE',
   active_slot_key VARCHAR(120) GENERATED ALWAYS AS (
-    IF(status NOT IN ('Rejected', 'Cancelled'), CONCAT(doctor_id, '_', appointment_date, '_', start_time), NULL)
+    IF(status NOT IN ('Rejected', 'Cancelled', 'Completed'), CONCAT(doctor_id, '_', appointment_date, '_', start_time), NULL)
   ) STORED,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -248,4 +250,49 @@ CREATE TABLE IF NOT EXISTS laboratory_settings (
   accepts_walkins BOOLEAN NOT NULL DEFAULT TRUE,
   appointment_required BOOLEAN NOT NULL DEFAULT FALSE,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 14. WEBSITE SECTIONS VISIBILITY TABLE
+CREATE TABLE IF NOT EXISTS website_sections (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT NULL,
+  is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+  display_order INT DEFAULT 0,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 15. PATIENT FEEDBACK & REVIEWS TABLE
+CREATE TABLE IF NOT EXISTS patient_reviews (
+  id VARCHAR(36) PRIMARY KEY,
+  patient_id VARCHAR(36) NOT NULL,
+  doctor_id VARCHAR(36) NOT NULL,
+  appointment_id VARCHAR(36) NOT NULL,
+  rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+  review_title VARCHAR(255) NULL,
+  review_message TEXT NOT NULL,
+  status ENUM('Pending', 'Approved', 'Rejected') NOT NULL DEFAULT 'Pending',
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uk_review_appointment (appointment_id),
+  FOREIGN KEY (patient_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE CASCADE,
+  FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 16. CHIEF DOCTOR PROFILE TABLE
+CREATE TABLE IF NOT EXISTS chief_doctor_profile (
+  id VARCHAR(50) PRIMARY KEY,
+  doctor_id VARCHAR(50) NULL,
+  name VARCHAR(255) NOT NULL,
+  designation VARCHAR(255) NOT NULL DEFAULT 'Chief Doctor / Medical Director',
+  qualifications VARCHAR(255) NOT NULL,
+  speciality VARCHAR(255) NOT NULL,
+  experience_years INT NOT NULL DEFAULT 18,
+  photo_url LONGTEXT NULL,
+  introduction TEXT NOT NULL,
+  welcome_message TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (doctor_id) REFERENCES doctors(id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

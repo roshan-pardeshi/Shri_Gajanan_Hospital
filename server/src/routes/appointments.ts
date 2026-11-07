@@ -17,10 +17,25 @@ async function checkIsAdmin(userId?: string): Promise<boolean> {
   return rows.length > 0;
 }
 
+// Helper to format dates cleanly in Asia/Kolkata timezone
+function formatToISTDate(val: any): string | null {
+  if (!val) return null;
+  if (typeof val === 'string') {
+    const match = val.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+  }
+  try {
+    const d = new Date(val);
+    return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  } catch {
+    return String(val);
+  }
+}
+
 // GET appointments (Scoped to requester role)
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { patientId, doctorId, status, search } = req.query;
+    const { patientId, doctorId, status, search, dateScope, date } = req.query;
     const currentUser = req.user;
     const isAdmin = await checkIsAdmin(currentUser?.id);
 
@@ -31,9 +46,11 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
         d.photo_url AS doctor_photo,
         d.qualifications AS doctor_qualifications,
         s.name AS speciality_name,
-        COALESCE(p.full_name, a.patient_name, 'Patient') AS patient_name,
-        COALESCE(p.mobile_number, a.patient_phone, '') AS patient_phone,
-        COALESCE(p.email, a.patient_email, '') AS patient_email
+        COALESCE(NULLIF(a.patient_name, ''), p.full_name, 'Patient') AS patient_name,
+        COALESCE(NULLIF(a.patient_phone, ''), p.mobile_number, '') AS patient_phone,
+        COALESCE(NULLIF(a.patient_email, ''), p.email, '') AS patient_email,
+        p.age AS patient_age,
+        p.gender AS patient_gender
       FROM appointments a
       LEFT JOIN doctors d ON a.doctor_id = d.id
       LEFT JOIN specialities s ON a.speciality_id = s.id
@@ -69,6 +86,19 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       params.push(status);
     }
 
+    if (date && typeof date === 'string') {
+      sql += ` AND a.appointment_date = ?`;
+      params.push(date);
+    } else if (dateScope === 'today') {
+      const todayIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      sql += ` AND a.appointment_date = ?`;
+      params.push(todayIST);
+    } else if (dateScope === 'previous') {
+      const todayIST = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata' }).format(new Date());
+      sql += ` AND a.appointment_date < ?`;
+      params.push(todayIST);
+    }
+
     if (search && typeof search === 'string') {
       sql += ` AND (a.reference_number LIKE ? OR d.name LIKE ? OR a.patient_name LIKE ? OR a.patient_phone LIKE ?)`;
       const term = `%${search.trim()}%`;
@@ -82,12 +112,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
     // Format dates & times cleanly for frontend
     const formatted = rows.map(r => ({
       ...r,
-      appointment_date: r.appointment_date ? new Date(r.appointment_date).toISOString().split('T')[0] : r.appointment_date,
-      original_appointment_date: r.original_appointment_date ? new Date(r.original_appointment_date).toISOString().split('T')[0] : r.original_appointment_date,
-      requested_reschedule_date: r.requested_reschedule_date ? new Date(r.requested_reschedule_date).toISOString().split('T')[0] : r.requested_reschedule_date,
+      appointment_date: formatToISTDate(r.appointment_date),
+      original_appointment_date: formatToISTDate(r.original_appointment_date),
+      requested_reschedule_date: formatToISTDate(r.requested_reschedule_date),
       start_time: String(r.start_time).substring(0, 5),
       end_time: String(r.end_time).substring(0, 5),
       requested_reschedule_time: r.requested_reschedule_time ? String(r.requested_reschedule_time).substring(0, 5) : null,
+      booking_source: r.booking_source || 'ONLINE',
+      patient_age: r.patient_age !== undefined ? r.patient_age : null,
+      patient_gender: r.patient_gender !== undefined ? r.patient_gender : null,
     }));
 
     return res.json(formatted);
@@ -113,7 +146,9 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
         s.name AS speciality_name,
         COALESCE(p.full_name, a.patient_name, 'Patient') AS patient_name,
         COALESCE(p.mobile_number, a.patient_phone, '') AS patient_phone,
-        COALESCE(p.email, a.patient_email, '') AS patient_email
+        COALESCE(p.email, a.patient_email, '') AS patient_email,
+        p.age AS patient_age,
+        p.gender AS patient_gender
       FROM appointments a
       LEFT JOIN doctors d ON a.doctor_id = d.id
       LEFT JOIN specialities s ON a.speciality_id = s.id
@@ -137,9 +172,14 @@ router.get('/:id', optionalAuth, async (req: Request, res: Response) => {
 
     return res.json({
       ...apt,
-      appointment_date: apt.appointment_date ? new Date(apt.appointment_date).toISOString().split('T')[0] : apt.appointment_date,
+      appointment_date: formatToISTDate(apt.appointment_date),
+      original_appointment_date: formatToISTDate(apt.original_appointment_date),
+      requested_reschedule_date: formatToISTDate(apt.requested_reschedule_date),
       start_time: String(apt.start_time).substring(0, 5),
       end_time: String(apt.end_time).substring(0, 5),
+      booking_source: apt.booking_source || 'ONLINE',
+      patient_age: apt.patient_age !== undefined ? apt.patient_age : null,
+      patient_gender: apt.patient_gender !== undefined ? apt.patient_gender : null,
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Failed to fetch appointment' });
@@ -183,12 +223,13 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
       }
 
       // 2. Lock & Check for conflicting active appointment on the exact doctor slot
+      // Slot is blocked by Pending, Approved, Rescheduled. Completed, Cancelled, and Rejected release the slot.
       const [conflicts]: any = await conn.query(
         `SELECT id FROM appointments 
          WHERE doctor_id = ? 
            AND appointment_date = ? 
            AND start_time = ? 
-           AND status NOT IN ('Rejected', 'Cancelled')
+           AND status NOT IN ('Rejected', 'Cancelled', 'Completed')
          FOR UPDATE`,
         [doctor_id, appointment_date, formattedStartTime]
       );
@@ -206,23 +247,66 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
         }
       }
 
-      // 4. Generate reference number
+      // 4. Resolve / Link Patient Profile
+      let patientIdToSave: string | null = null;
+      if (effectivePatientId) {
+        const [userProf]: any = await conn.query('SELECT id FROM profiles WHERE id = ?', [effectivePatientId]);
+        if (userProf.length > 0) {
+          patientIdToSave = userProf[0].id;
+        }
+      }
+
+      const cleanPhone = patient_phone ? String(patient_phone).trim() : null;
+      const cleanEmail = patient_email ? String(patient_email).trim() : null;
+      const cleanName = patient_name ? String(patient_name).trim() : 'Patient';
+
+      if (!patientIdToSave && cleanPhone) {
+        const [phoneProf]: any = await conn.query('SELECT id FROM profiles WHERE mobile_number = ? LIMIT 1', [cleanPhone]);
+        if (phoneProf.length > 0) {
+          patientIdToSave = phoneProf[0].id;
+        }
+      }
+
+      if (!patientIdToSave && cleanEmail) {
+        const [emailProf]: any = await conn.query('SELECT id FROM profiles WHERE email = ? LIMIT 1', [cleanEmail]);
+        if (emailProf.length > 0) {
+          patientIdToSave = emailProf[0].id;
+        }
+      }
+
+      // If still not found, create a patient profile in profiles table
+      if (!patientIdToSave && (cleanPhone || cleanEmail)) {
+        patientIdToSave = crypto.randomUUID();
+        const fallbackEmail = cleanEmail || `online.${(cleanPhone || '').replace(/\D/g, '') || Math.floor(100000 + Math.random() * 900000)}@smartcarehospital.org`;
+        await conn.query(
+          `INSERT INTO profiles (id, email, password_hash, full_name, mobile_number, role)
+           VALUES (?, ?, NULL, ?, ?, 'patient')`,
+          [patientIdToSave, fallbackEmail, cleanName, cleanPhone]
+        );
+        await conn.query(
+          `INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, 'patient')`,
+          [crypto.randomUUID(), patientIdToSave]
+        );
+      }
+
+      // 5. Generate reference number
       const dateToken = appointment_date.replace(/-/g, '');
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const referenceNumber = `SGH-${dateToken}-${randomSuffix}`;
       const appointmentId = crypto.randomUUID();
 
-      // 5. Insert appointment
+      // 6. Insert appointment
       await conn.query(
         `INSERT INTO appointments (
           id, reference_number, patient_id, doctor_id, speciality_id,
           appointment_date, start_time, end_time, reason_for_visit,
-          visit_type, status, patient_name, patient_phone, patient_email
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?)`,
+          visit_type, status, patient_name, patient_phone, patient_email,
+          booking_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', ?, ?, ?, 'ONLINE')`,
         [
           appointmentId,
           referenceNumber,
-          effectivePatientId,
+          patientIdToSave,
           doctor_id,
           effectiveSpecialityId,
           appointment_date,
@@ -230,28 +314,28 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
           formattedEndTime,
           reason_for_visit,
           visit_type || 'first_visit',
-          patient_name || null,
-          patient_phone || null,
-          patient_email || null,
+          cleanName,
+          cleanPhone,
+          cleanEmail,
         ]
       );
 
-      // 6. Insert audit trail in appointment_history
+      // 7. Insert audit trail in appointment_history
       await conn.query(
         `INSERT INTO appointment_history (
           id, appointment_id, previous_status, new_status, action_type, changed_by, notes
         ) VALUES (?, ?, NULL, 'Pending', 'created', ?, 'Appointment booked via portal')`,
-        [crypto.randomUUID(), appointmentId, effectivePatientId]
+        [crypto.randomUUID(), appointmentId, patientIdToSave]
       );
 
-      // 7. Create notification
-      if (effectivePatientId) {
+      // 8. Create notification for patient
+      if (patientIdToSave) {
         await conn.query(
           `INSERT INTO notifications (id, user_id, title, message, type, is_read, reference_id)
            VALUES (?, ?, ?, ?, 'appointment_request', FALSE, ?)`,
           [
             crypto.randomUUID(),
-            effectivePatientId,
+            patientIdToSave,
             'Appointment Booking Received',
             `Your appointment request (${referenceNumber}) has been received and is pending confirmation.`,
             appointmentId,
@@ -295,6 +379,212 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
   }
 });
 
+// POST Add Offline / Walk-in Patient Appointment (Admin Only)
+router.post('/offline', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const {
+      patient_name,
+      patient_phone,
+      age,
+      gender,
+      speciality_id,
+      doctor_id,
+      appointment_date,
+      start_time,
+      end_time,
+      notes,
+    } = req.body;
+
+    // 1. Mandatory Fields Validation
+    if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length < 2) {
+      return res.status(400).json({ error: 'Patient full name is required (minimum 2 characters).' });
+    }
+    const cleanName = patient_name.trim();
+
+    if (!patient_phone || typeof patient_phone !== 'string' || patient_phone.replace(/\D/g, '').length < 10) {
+      return res.status(400).json({ error: 'Valid 10-digit mobile number is required.' });
+    }
+    const cleanPhone = patient_phone.trim();
+
+    if (!speciality_id || !doctor_id || !appointment_date || !start_time) {
+      return res.status(400).json({ error: 'Speciality, doctor, appointment date, and time slot are required.' });
+    }
+
+    const formattedStartTime = start_time.length === 5 ? `${start_time}:00` : start_time;
+
+    // Execute atomic booking transaction
+    const newAppointment = await withTransaction(async (conn) => {
+      // 2. Validate Doctor
+      const [docs]: any = await conn.query(
+        'SELECT id, name, speciality_id, slot_duration_minutes, working_hours_start, working_hours_end, is_active FROM doctors WHERE id = ?',
+        [doctor_id]
+      );
+      if (docs.length === 0 || docs[0].is_active === false) {
+        throw new Error('Selected doctor is inactive or not found.');
+      }
+      const doctor = docs[0];
+
+      // 3. Check doctor leave dates
+      const [leaves]: any = await conn.query(
+        'SELECT id FROM doctor_leave_dates WHERE doctor_id = ? AND leave_date = ?',
+        [doctor_id, appointment_date]
+      );
+      if (leaves.length > 0) {
+        throw new Error(`Dr. ${doctor.name} is on approved leave on ${appointment_date}. Please choose another date or doctor.`);
+      }
+
+      // 4. Lock & Check for conflicting active appointment on the exact doctor slot
+      // Slot is blocked by Pending, Approved, Rescheduled. Completed, Cancelled, and Rejected release the slot.
+      const [conflicts]: any = await conn.query(
+        `SELECT id, reference_number FROM appointments 
+         WHERE doctor_id = ? 
+           AND appointment_date = ? 
+           AND start_time = ? 
+           AND status NOT IN ('Rejected', 'Cancelled', 'Completed')
+         FOR UPDATE`,
+        [doctor_id, appointment_date, formattedStartTime]
+      );
+
+      if (conflicts.length > 0) {
+        throw new Error(`This time slot (${start_time}) is already booked for Dr. ${doctor.name}. Please select an available slot.`);
+      }
+
+      // 5. Calculate end time
+      let formattedEndTime = end_time;
+      if (!formattedEndTime) {
+        const [h, m] = start_time.split(':').map(Number);
+        const duration = doctor.slot_duration_minutes || 30;
+        const totalM = h * 60 + m + duration;
+        const endH = String(Math.floor(totalM / 60)).padStart(2, '0');
+        const endM = String(totalM % 60).padStart(2, '0');
+        formattedEndTime = `${endH}:${endM}:00`;
+      } else if (formattedEndTime.length === 5) {
+        formattedEndTime = `${formattedEndTime}:00`;
+      }
+
+      // 6. Patient Record Handling (Lookup existing or Create)
+      let patientId: string | null = null;
+      let patientEmail: string | null = null;
+      const parsedAge = age ? parseInt(String(age), 10) : null;
+      const validGender = ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender) ? gender : null;
+
+      // Look up existing patient profile by mobile number
+      const [existingProfiles]: any = await conn.query(
+        'SELECT id, email, full_name, age, gender FROM profiles WHERE mobile_number = ? LIMIT 1',
+        [cleanPhone]
+      );
+
+      if (existingProfiles.length > 0) {
+        patientId = existingProfiles[0].id;
+        patientEmail = existingProfiles[0].email;
+        if (parsedAge !== null || validGender !== null) {
+          await conn.query(
+            'UPDATE profiles SET age = COALESCE(?, age), gender = COALESCE(?, gender) WHERE id = ?',
+            [parsedAge, validGender, patientId]
+          );
+        }
+      } else {
+        patientId = crypto.randomUUID();
+        const digitsOnly = cleanPhone.replace(/\D/g, '');
+        patientEmail = `walkin.${digitsOnly}@smartcarehospital.org`;
+
+        const [emailConflict]: any = await conn.query('SELECT id FROM profiles WHERE email = ?', [patientEmail]);
+        if (emailConflict.length > 0) {
+          patientEmail = `walkin.${digitsOnly}.${Math.floor(100 + Math.random() * 900)}@smartcarehospital.org`;
+        }
+
+        await conn.query(
+          `INSERT INTO profiles (id, email, password_hash, full_name, mobile_number, age, gender, role)
+           VALUES (?, ?, NULL, ?, ?, ?, ?, 'patient')`,
+          [patientId, patientEmail, cleanName, cleanPhone, parsedAge, validGender]
+        );
+
+        await conn.query(
+          `INSERT INTO user_roles (id, user_id, role) VALUES (?, ?, 'patient')`,
+          [crypto.randomUUID(), patientId]
+        );
+      }
+
+      // 7. Generate Reference Number
+      const dateToken = appointment_date.replace(/-/g, '');
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const referenceNumber = `SGH-${dateToken}-${randomSuffix}`;
+      const appointmentId = crypto.randomUUID();
+
+      // 8. Insert Appointment with booking_source = 'OFFLINE'
+      const reasonText = notes && notes.trim().length > 0 ? notes.trim() : 'Walk-in / Offline Consultation';
+      await conn.query(
+        `INSERT INTO appointments (
+          id, reference_number, patient_id, doctor_id, speciality_id,
+          appointment_date, start_time, end_time, reason_for_visit,
+          visit_type, status, patient_name, patient_phone, patient_email,
+          booking_source
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'first_visit', 'Pending', ?, ?, ?, 'OFFLINE')`,
+        [
+          appointmentId,
+          referenceNumber,
+          patientId,
+          doctor_id,
+          speciality_id,
+          appointment_date,
+          formattedStartTime,
+          formattedEndTime,
+          reasonText,
+          cleanName,
+          cleanPhone,
+          patientEmail,
+        ]
+      );
+
+      // 9. Insert Audit Trail
+      await conn.query(
+        `INSERT INTO appointment_history (
+          id, appointment_id, previous_status, new_status, action_type, changed_by, notes
+        ) VALUES (?, ?, NULL, 'Pending', 'created', ?, 'Walk-in offline appointment created by administrator')`,
+        [crypto.randomUUID(), appointmentId, req.user?.id || null]
+      );
+
+      // 10. Notification for Admin Desk
+      await conn.query(
+        `INSERT INTO notifications (id, user_id, title, message, type, is_read, reference_id)
+         VALUES (?, NULL, 'Walk-in Offline Patient Registered', ?, 'appointment_request', FALSE, ?)`,
+        [
+          crypto.randomUUID(),
+          `Offline walk-in registered for ${cleanName} with Dr. ${doctor.name} (${referenceNumber}) on ${appointment_date} at ${start_time}.`,
+          appointmentId,
+        ]
+      );
+
+      return {
+        id: appointmentId,
+        reference_number: referenceNumber,
+        patient_id: patientId,
+        patient_name: cleanName,
+        patient_phone: cleanPhone,
+        patient_email: patientEmail,
+        patient_age: parsedAge,
+        patient_gender: validGender,
+        doctor_id,
+        doctor_name: doctor.name,
+        speciality_id,
+        appointment_date,
+        start_time: start_time.substring(0, 5),
+        end_time: formattedEndTime.substring(0, 5),
+        reason_for_visit: reasonText,
+        visit_type: 'first_visit',
+        status: 'Pending',
+        booking_source: 'OFFLINE',
+        created_at: new Date().toISOString(),
+      };
+    });
+
+    return res.status(201).json(newAppointment);
+  } catch (err: any) {
+    console.error('addOfflineAppointment error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to add offline appointment.' });
+  }
+});
+
 // PUT reschedule appointment
 router.put('/:id/reschedule', optionalAuth, async (req: Request, res: Response) => {
   try {
@@ -319,7 +609,7 @@ router.put('/:id/reschedule', optionalAuth, async (req: Request, res: Response) 
            AND appointment_date = ? 
            AND start_time = ? 
            AND id != ?
-           AND status NOT IN ('Rejected', 'Cancelled')`,
+           AND status NOT IN ('Rejected', 'Cancelled', 'Completed')`,
         [apt.doctor_id, newDate, formattedTime, id]
       );
 

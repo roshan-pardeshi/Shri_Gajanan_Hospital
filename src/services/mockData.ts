@@ -1,4 +1,4 @@
-import { Doctor, HealthScheme, HospitalSettings, Speciality, Appointment, Notification, LaboratoryTest, LaboratorySettings } from '../types';
+import { Doctor, HealthScheme, HospitalSettings, Speciality, Appointment, Notification, LaboratoryTest, LaboratorySettings, WebsiteSection } from '../types';
 
 export const INITIAL_SPECIALITIES: Speciality[] = [
   {
@@ -798,4 +798,97 @@ export const INITIAL_LABORATORY_TESTS: LaboratoryTest[] = [
     updated_at: '2026-10-20T08:00:00Z'
   }
 ];
+
+export const INITIAL_WEBSITE_SECTIONS: WebsiteSection[] = [
+  {
+    id: 'schemes',
+    name: 'Government Schemes',
+    description: 'Ayushman Bharat PM-JAY & Maharashtra MJPJAY cashless scheme highlights, cards, and pages.',
+    is_visible: true,
+    display_order: 1,
+  },
+  {
+    id: 'laboratory',
+    name: 'Laboratory Services',
+    description: 'Diagnostic pathology, blood testing services, test directory, and laboratory desk.',
+    is_visible: true,
+    display_order: 2,
+  },
+  {
+    id: 'doctors',
+    name: 'Doctors',
+    description: 'Verified senior specialists, OPD schedules, doctor profiles, and OPD directory.',
+    is_visible: true,
+    display_order: 3,
+  },
+  {
+    id: 'specialities',
+    name: 'Specialities',
+    description: 'Clinical departments including Cardiology, Orthopaedics, Neurology, & Oncology.',
+    is_visible: true,
+    display_order: 4,
+  },
+  {
+    id: 'facilities',
+    name: 'Hospital Facilities',
+    description: '250-bed inpatient infrastructure, 24/7 Casualty, Dialysis, and modular Operation Theatres.',
+    is_visible: true,
+    display_order: 5,
+  },
+  {
+    id: 'how_it_works',
+    name: 'About Hospital',
+    description: 'Hospital overview, patient guidance, and step-by-step appointment booking walkthrough.',
+    is_visible: true,
+    display_order: 6,
+  },
+  {
+    id: 'health_packages',
+    name: 'Health Packages',
+    description: 'Preventive health checkup packages and routine wellness screening bundles.',
+    is_visible: true,
+    display_order: 7,
+  },
+  {
+    id: 'testimonials',
+    name: 'Testimonials',
+    description: 'Verified patient recovery stories, doctor appreciation, and clinical treatment feedback.',
+    is_visible: true,
+    display_order: 8,
+  },
+  {
+    id: 'contact',
+    name: 'Contact & Helpdesk',
+    description: 'Hospital address, emergency contact numbers, Borivali location map, and query form.',
+    is_visible: true,
+    display_order: 9,
+  },
+  {
+    id: 'quick_access',
+    name: 'Quick Portals / Access Cards',
+    description: 'Homepage interactive quick portal cards for instant navigation.',
+    is_visible: true,
+    display_order: 10,
+  },
+  {
+    id: 'chief_doctor',
+    name: 'Chief Doctor Profile',
+    description: 'Meet Our Chief Doctor & Medical Director profile section on homepage.',
+    is_visible: true,
+    display_order: 11,
+  },
+];
+
+export const INITIAL_CHIEF_DOCTOR_PROFILE = {
+  id: 'chief-doctor-shri-gajanan-1',
+  doctor_id: 'c369ab99-5197-4359-bfd8-cead79d8090e',
+  name: 'Dr. Vishal Panditrao Pawar',
+  designation: 'Chief Doctor / Medical Director',
+  qualifications: 'MBBS, MD (Medicine), DM (Cardiology), FACC',
+  speciality: 'Cardiology & Internal Medicine',
+  experience_years: 18,
+  photo_url: null,
+  introduction: 'Dr. Vishal Panditrao Pawar is the Chief Doctor and Medical Director at Shri Gajanan Hospital. With over 18 years of clinical and interventional expertise, he has performed over 6,500+ successful cardiac interventions and pioneered compassionate, patient-centered clinical standards across the region.',
+  welcome_message: 'Welcome to Shri Gajanan Hospital. Our paramount commitment is ensuring every patient receives state-of-the-art medical excellence delivered with empathy, dignity, and personal care. We stand by you and your family around the clock for all your healthcare needs.'
+};
 

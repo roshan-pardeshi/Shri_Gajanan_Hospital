@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    font-size: 93.75%; /* Scales root font size to 15px (6.25% reduction), allowing more content to fit cleanly across all screens */
+  }
+
   body {
     @apply bg-white text-slate-800 font-sans;
   }

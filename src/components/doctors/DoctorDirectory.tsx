@@ -248,12 +248,6 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
                           {doc.working_days.join(', ')}
                         </span>
                       </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-200/60">
-                        <span className="text-slate-400">Consultation Fee:</span>
-                        <span className="font-extrabold text-teal-700">
-                          ₹{doc.consultation_fee}
-                        </span>
-                      </div>
                     </div>
                   </div>
 
@@ -369,12 +363,6 @@ export const DoctorDirectory: React.FC<DoctorDirectoryProps> = ({
                     <span className="text-slate-500">Slot Duration:</span>
                     <span className="font-bold text-slate-800">
                       {selectedDoctorForModal.slot_duration_minutes} Minutes
-                    </span>
-                  </div>
-                  <div className="flex justify-between pt-2 border-t border-slate-200">
-                    <span className="text-slate-500">Consultation Fee:</span>
-                    <span className="text-sm font-black text-teal-700">
-                      ₹{selectedDoctorForModal.consultation_fee}
                     </span>
                   </div>
                 </div>

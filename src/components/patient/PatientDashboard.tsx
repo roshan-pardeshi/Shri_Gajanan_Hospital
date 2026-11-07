@@ -16,7 +16,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Edit2,
-  ExternalLink
+  ExternalLink,
+  Star
 } from 'lucide-react';
 import { Appointment, AppointmentStatus, Notification, UserProfile, HealthScheme, Doctor } from '../../types';
 import { dataService } from '../../services/dataService';
@@ -31,6 +32,7 @@ interface PatientDashboardProps {
   doctors?: Doctor[];
   onSelectScheme?: (scheme: HealthScheme) => void;
   onNavigate?: (tab: string) => void;
+  onOpenReviewModal?: (doctorId?: string, appointmentId?: string) => void;
 }
 
 export const PatientDashboard: React.FC<PatientDashboardProps> = ({ 
@@ -38,7 +40,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   schemes: initialSchemes,
   doctors: initialDoctors,
   onSelectScheme,
-  onNavigate
+  onNavigate,
+  onOpenReviewModal
 }) => {
   const { user, updateProfile } = useAuth();
   
@@ -552,6 +555,17 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                           <FileText className="w-3.5 h-3.5 text-slate-500" />
                           <span>View Slip</span>
                         </button>
+
+                        {apt.status === 'Completed' && onOpenReviewModal && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenReviewModal(apt.doctor_id, apt.id)}
+                            className="px-3.5 py-2 rounded-xl text-xs font-bold border border-amber-300 text-amber-800 bg-amber-50 hover:bg-amber-100 flex items-center gap-1.5 transition-colors"
+                          >
+                            <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+                            <span>Leave Feedback</span>
+                          </button>
+                        )}
 
                         {canReschedule && (
                           <button

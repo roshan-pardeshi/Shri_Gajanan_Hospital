@@ -47,6 +47,7 @@ export async function getDbPool(): Promise<mysql.Pool> {
     multipleStatements: true,
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
+    dateStrings: true,
   });
 
   return pool;

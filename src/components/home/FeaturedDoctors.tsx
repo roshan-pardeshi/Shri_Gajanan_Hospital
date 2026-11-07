@@ -113,14 +113,9 @@
 //                       {doc.bio}
 //                     </p>
 
-//                     <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-//                       <div className="flex items-center gap-1">
-//                         <Clock className="w-3.5 h-3.5 text-teal-600" />
-//                         <span>{doc.experience_years}+ Yrs Exp</span>
-//                       </div>
-//                       <div className="font-bold text-slate-900">
-//                         ₹{doc.consultation_fee} <span className="text-[10px] font-normal text-slate-400">OPD</span>
-//                       </div>
+//                     <div className="pt-2 border-t border-slate-100 flex items-center gap-1 text-xs text-slate-500">
+//                       <Clock className="w-3.5 h-3.5 text-teal-600" />
+//                       <span>{doc.experience_years}+ Yrs Exp</span>
 //                     </div>
 //                   </div>
 //                 </div>
@@ -292,21 +287,12 @@ export const FeaturedDoctors: React.FC<FeaturedDoctorsProps> = ({
                       </p>
                     )}
 
-                    {/* Experience and Consultation Fee */}
-                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-500">
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-                        <span>
-                          {doc.experience_years}+ Yrs Exp
-                        </span>
-                      </div>
-
-                      <div className="font-bold text-slate-900">
-                        ₹{doc.consultation_fee}{' '}
-                        <span className="text-[10px] font-normal text-slate-400">
-                          OPD
-                        </span>
-                      </div>
+                    {/* Experience */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center gap-1 text-xs text-slate-500">
+                      <Clock className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+                      <span>
+                        {doc.experience_years}+ Yrs Exp
+                      </span>
                     </div>
                   </div>
 

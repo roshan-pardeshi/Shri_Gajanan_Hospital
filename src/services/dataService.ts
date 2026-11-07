@@ -6,7 +6,13 @@ import {
   Notification, 
   Speciality, 
   LaboratoryTest,
-  LaboratorySettings
+  LaboratorySettings,
+  WebsiteSection,
+  PatientReview,
+  ReviewStats,
+  EligibleAppointmentForReview,
+  ReviewStatus,
+  ChiefDoctorProfile
 } from '../types';
 import { 
   INITIAL_APPOINTMENTS, 
@@ -16,7 +22,9 @@ import {
   INITIAL_NOTIFICATIONS, 
   INITIAL_SPECIALITIES,
   INITIAL_LABORATORY_TESTS,
-  INITIAL_LABORATORY_SETTINGS
+  INITIAL_LABORATORY_SETTINGS,
+  INITIAL_WEBSITE_SECTIONS,
+  INITIAL_CHIEF_DOCTOR_PROFILE
 } from './mockData';
 import { api } from './apiClient';
 
@@ -95,6 +103,10 @@ export const dataService = {
   async updateDoctor(id: string, updates: Partial<Doctor>): Promise<Doctor> {
     try {
       const updated = await api.put<Doctor>(`/doctors/${id}`, updates);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('doctors-updated', { detail: updated }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: updated }));
+      }
       return updated;
     } catch (err: any) {
       console.error('API updateDoctor error:', err);
@@ -105,6 +117,10 @@ export const dataService = {
   async addDoctor(newDoctor: Omit<Doctor, 'id'>): Promise<Doctor> {
     try {
       const created = await api.post<Doctor>('/doctors', newDoctor);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('doctors-updated', { detail: created }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: created }));
+      }
       return created;
     } catch (err: any) {
       console.error('API addDoctor error:', err);
@@ -133,15 +149,34 @@ export const dataService = {
     }));
   },
 
+  async getDoctorSlotSchedule(doctorId: string, dateStr: string): Promise<{ onLeave: boolean; slots: { time: string; isBooked: boolean; isPast: boolean }[] }> {
+    try {
+      const res = await api.get<{ onLeave: boolean; slots: { time: string; isBooked: boolean; isPast: boolean }[] }>(
+        `/doctors/${doctorId}/slots?date=${dateStr}`
+      );
+      if (res) {
+        return {
+          onLeave: Boolean(res.onLeave),
+          slots: Array.isArray(res.slots) ? res.slots : [],
+        };
+      }
+    } catch (err) {
+      console.warn('API getDoctorSlotSchedule fallback:', err);
+    }
+    return { onLeave: false, slots: [] };
+  },
+
   // -------------------------------------------------------------
   // Appointments
   // -------------------------------------------------------------
-  async getAppointments(filters?: { patientId?: string; doctorId?: string; status?: string }): Promise<Appointment[]> {
+  async getAppointments(filters?: { patientId?: string; doctorId?: string; status?: string; dateScope?: string; date?: string }): Promise<Appointment[]> {
     try {
       const params = new URLSearchParams();
       if (filters?.patientId) params.append('patientId', filters.patientId);
       if (filters?.doctorId) params.append('doctorId', filters.doctorId);
       if (filters?.status) params.append('status', filters.status);
+      if (filters?.dateScope) params.append('dateScope', filters.dateScope);
+      if (filters?.date) params.append('date', filters.date);
 
       const queryString = params.toString() ? `?${params.toString()}` : '';
       const appointments = await api.get<Appointment[]>(`/appointments${queryString}`);
@@ -202,10 +237,45 @@ export const dataService = {
       };
 
       const result = await api.post<Appointment>('/appointments/book', payload);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appointment-booked', { detail: result }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: result }));
+        try {
+          localStorage.setItem('sgh_last_appointment_sync', String(Date.now()));
+        } catch {}
+      }
       return result;
     } catch (err: any) {
       console.error('API bookAppointment error:', err);
       throw new Error(err.message || 'Failed to book appointment in MySQL database.');
+    }
+  },
+
+  async addOfflineAppointment(params: {
+    patient_name: string;
+    patient_phone: string;
+    age?: number | string;
+    gender?: 'Male' | 'Female' | 'Other' | 'Prefer not to say';
+    speciality_id: string;
+    doctor_id: string;
+    appointment_date: string;
+    start_time: string;
+    end_time?: string;
+    notes?: string;
+  }): Promise<Appointment> {
+    try {
+      const result = await api.post<Appointment>('/appointments/offline', params);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appointment-booked', { detail: result }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: result }));
+        try {
+          localStorage.setItem('sgh_last_appointment_sync', String(Date.now()));
+        } catch {}
+      }
+      return result;
+    } catch (err: any) {
+      console.error('API addOfflineAppointment error:', err);
+      throw new Error(err.message || 'Failed to add offline patient appointment');
     }
   },
 
@@ -233,6 +303,13 @@ export const dataService = {
       const result = await api.put<Appointment>(`/appointments/${appointmentId}/cancel`, {
         reason,
       });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appointment-updated', { detail: result }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: result }));
+        try {
+          localStorage.setItem('sgh_last_appointment_sync', String(Date.now()));
+        } catch {}
+      }
       return result;
     } catch (err: any) {
       console.error('API cancelAppointment error:', err);
@@ -252,6 +329,13 @@ export const dataService = {
         rejection_reason: rejectionReason,
         notes,
       });
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('appointment-updated', { detail: result }));
+        window.dispatchEvent(new CustomEvent('doctor-availability-changed', { detail: result }));
+        try {
+          localStorage.setItem('sgh_last_appointment_sync', String(Date.now()));
+        } catch {}
+      }
       return result;
     } catch (err: any) {
       console.error('API updateAppointmentStatus error:', err);
@@ -264,8 +348,8 @@ export const dataService = {
   // -------------------------------------------------------------
   async getHealthSchemes(): Promise<HealthScheme[]> {
     try {
-      const schemes = await api.get<HealthScheme[]>('/schemes');
-      if (schemes && schemes.length > 0) return schemes;
+      const schemes = await api.get<HealthScheme[]>('/schemes?includeUnpublished=true');
+      if (Array.isArray(schemes)) return schemes;
     } catch (err) {
       console.warn('API getHealthSchemes fallback:', err);
     }
@@ -289,6 +373,16 @@ export const dataService = {
     } catch (err: any) {
       console.error('API addHealthScheme error:', err);
       throw new Error(err.message || 'Failed to add health scheme');
+    }
+  },
+
+  async deleteHealthScheme(id: string): Promise<boolean> {
+    try {
+      await api.delete(`/schemes/${id}`);
+      return true;
+    } catch (err: any) {
+      console.error('API deleteHealthScheme error:', err);
+      throw new Error(err.message || 'Failed to delete health scheme');
     }
   },
 
@@ -328,11 +422,14 @@ export const dataService = {
     } catch (err) {
       console.warn('API getNotifications fallback:', err);
     }
+    if (!isAdmin && !userId) {
+      return [];
+    }
     return INITIAL_NOTIFICATIONS.filter(n => {
       if (isAdmin) {
         return !n.user_id || n.user_id === userId || n.user_id === 'admin' || n.type === 'appointment_request' || n.type === 'reschedule_request' || n.type === 'appointment_cancelled' || n.type === 'general';
       }
-      return !n.user_id || n.user_id === userId;
+      return Boolean(userId && n.user_id === userId);
     });
   },
 
@@ -436,6 +533,151 @@ export const dataService = {
     } catch (err: any) {
       console.error('API updateLaboratorySettings error:', err);
       throw new Error(err.message || 'Failed to update laboratory settings');
+    }
+  },
+
+  // -------------------------------------------------------------
+  // Website Sections Visibility
+  // -------------------------------------------------------------
+  async getWebsiteSections(): Promise<WebsiteSection[]> {
+    try {
+      const data = await api.get<WebsiteSection[]>('/sections');
+      if (Array.isArray(data) && data.length > 0) return data;
+    } catch (err) {
+      console.warn('API getWebsiteSections fallback:', err);
+    }
+    return INITIAL_WEBSITE_SECTIONS;
+  },
+
+  async updateWebsiteSectionVisibility(id: string, is_visible: boolean): Promise<WebsiteSection> {
+    try {
+      const updated = await api.put<WebsiteSection>(`/sections/${id}`, { is_visible });
+      return updated;
+    } catch (err: any) {
+      console.error('API updateWebsiteSectionVisibility error:', err);
+      throw new Error(err.message || 'Failed to update section visibility');
+    }
+  },
+
+  // -------------------------------------------------------------
+  // Patient Feedback & Reviews
+  // -------------------------------------------------------------
+  async getPublicReviews(doctorId?: string): Promise<PatientReview[]> {
+    try {
+      const url = doctorId ? `/reviews?doctorId=${encodeURIComponent(doctorId)}` : '/reviews';
+      const data = await api.get<PatientReview[]>(url);
+      if (Array.isArray(data)) return data;
+    } catch (err) {
+      console.warn('API getPublicReviews error:', err);
+    }
+    return [];
+  },
+
+  async getPublicReviewStats(): Promise<{ total_approved_reviews: number; average_rating: number }> {
+    try {
+      const stats = await api.get<{ total_approved_reviews: number; average_rating: number }>('/reviews/stats');
+      if (stats) return stats;
+    } catch (err) {
+      console.warn('API getPublicReviewStats error:', err);
+    }
+    return { total_approved_reviews: 0, average_rating: 5.0 };
+  },
+
+  async getAdminReviews(status?: string): Promise<{ reviews: PatientReview[]; stats: ReviewStats }> {
+    try {
+      const url = status && status !== 'all' ? `/reviews?status=${encodeURIComponent(status)}` : '/reviews';
+      const res = await api.get<{ reviews: PatientReview[]; stats: ReviewStats }>(url);
+      if (res && Array.isArray(res.reviews)) return res;
+    } catch (err) {
+      console.error('API getAdminReviews error:', err);
+      throw err;
+    }
+    return {
+      reviews: [],
+      stats: { total_reviews: 0, pending_reviews: 0, approved_reviews: 0, rejected_reviews: 0, average_rating: 5.0 },
+    };
+  },
+
+  async getEligibleAppointmentsForReview(): Promise<EligibleAppointmentForReview[]> {
+    try {
+      const data = await api.get<EligibleAppointmentForReview[]>('/reviews/eligible-appointments');
+      if (Array.isArray(data)) return data;
+    } catch (err) {
+      console.warn('API getEligibleAppointmentsForReview error:', err);
+    }
+    return [];
+  },
+
+  async getMyReviews(): Promise<PatientReview[]> {
+    try {
+      const data = await api.get<PatientReview[]>('/reviews/my-reviews');
+      if (Array.isArray(data)) return data;
+    } catch (err) {
+      console.warn('API getMyReviews error:', err);
+    }
+    return [];
+  },
+
+  async submitReview(data: {
+    doctor_id: string;
+    appointment_id?: string;
+    rating: number;
+    review_title?: string;
+    review_message: string;
+  }): Promise<{ message: string; review: PatientReview }> {
+    try {
+      const res = await api.post<{ message: string; review: PatientReview }>('/reviews', data);
+      window.dispatchEvent(new CustomEvent('reviews-updated'));
+      return res;
+    } catch (err: any) {
+      console.error('API submitReview error:', err);
+      throw new Error(err.message || 'Failed to submit review');
+    }
+  },
+
+  async updateReviewStatus(id: string, status: ReviewStatus): Promise<{ message: string; review: PatientReview }> {
+    try {
+      const res = await api.patch<{ message: string; review: PatientReview }>(`/reviews/${id}/status`, { status });
+      window.dispatchEvent(new CustomEvent('reviews-updated'));
+      return res;
+    } catch (err: any) {
+      console.error('API updateReviewStatus error:', err);
+      throw new Error(err.message || 'Failed to update review status');
+    }
+  },
+
+  async deleteReview(id: string): Promise<{ message: string }> {
+    try {
+      const res = await api.delete<{ message: string }>(`/reviews/${id}`);
+      window.dispatchEvent(new CustomEvent('reviews-updated'));
+      return res;
+    } catch (err: any) {
+      console.error('API deleteReview error:', err);
+      throw new Error(err.message || 'Failed to delete review');
+    }
+  },
+
+  // -------------------------------------------------------------
+  // Chief Doctor Profile
+  // -------------------------------------------------------------
+  async getChiefDoctorProfile(): Promise<ChiefDoctorProfile> {
+    try {
+      const res = await api.get<ChiefDoctorProfile>('/chief-doctor');
+      if (res && res.name) return res;
+    } catch (err) {
+      console.warn('API getChiefDoctorProfile error, using fallback:', err);
+    }
+    return INITIAL_CHIEF_DOCTOR_PROFILE as ChiefDoctorProfile;
+  },
+
+  async updateChiefDoctorProfile(data: Partial<ChiefDoctorProfile>): Promise<ChiefDoctorProfile> {
+    try {
+      const res = await api.put<ChiefDoctorProfile>('/chief-doctor', data);
+      window.dispatchEvent(new CustomEvent('chief-doctor-updated', { detail: res }));
+      return res;
+    } catch (err: any) {
+      console.error('API updateChiefDoctorProfile error:', err);
+      throw new Error(err.message || 'Failed to update Chief Doctor Profile');
     }
   },
 
