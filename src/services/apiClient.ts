@@ -1,11 +1,40 @@
 /**
- * SmartCare Hospital Portal - API Client
- * Connects frontend to local Express + MySQL backend
+ * Shri Gajanan Multispeciality Hospital - API Client
+ * Connects frontend to Express + MySQL/TiDB backend (Render production or local)
  */
 
-const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
-
 export const TOKEN_STORAGE_KEY = 'sgh_auth_token';
+
+/**
+ * Normalizes the API endpoint and base URL to guarantee that endpoints such as
+ * '/settings', '/api/settings', or '/sections' are always correctly routed to '/api/...'.
+ */
+export function formatApiUrl(endpoint: string): string {
+  const base = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+  let path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // If no base URL is defined (e.g. falling back to relative paths for local dev proxy)
+  if (!base) {
+    return path.startsWith('/api') ? path : `/api${path}`;
+  }
+
+  // If base already ends with '/api' (e.g. "https://shri-gajanan-hospital.onrender.com/api")
+  if (base.endsWith('/api')) {
+    if (path.startsWith('/api/')) {
+      path = path.slice(4); // strip leading redundant '/api'
+    } else if (path === '/api') {
+      path = '';
+    }
+    return `${base}${path}`;
+  }
+
+  // If base does not end with '/api' (e.g. "https://shri-gajanan-hospital.onrender.com")
+  if (!path.startsWith('/api')) {
+    path = `/api${path}`;
+  }
+
+  return `${base}${path}`;
+}
 
 export function getAuthToken(): string | null {
   try {
@@ -35,8 +64,7 @@ export async function apiRequest<T = any>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  const url = `${API_BASE_URL}${cleanEndpoint}`;
+  const url = formatApiUrl(endpoint);
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
