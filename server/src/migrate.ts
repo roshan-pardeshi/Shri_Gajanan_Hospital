@@ -3,9 +3,15 @@ import path from 'path';
 import { getDbPool, testConnection, dbConfig } from './db';
 
 export async function runMigrations(): Promise<boolean> {
+  // If explicitly disabled via env, skip immediately
+  if (process.env.RUN_MIGRATIONS === 'false') {
+    console.log('ℹ️ RUN_MIGRATIONS is set to false. Skipping database schema migration & seed.');
+    return true;
+  }
+
   console.log('=====================================================');
-  console.log('SmartCare Hospital - MySQL Database Migration');
-  console.log(`Connecting to MySQL on ${dbConfig.host}:${dbConfig.port} as user '${dbConfig.user}'...`);
+  console.log('SmartCare Hospital - Database Migration & Verification');
+  console.log(`Connecting to database on ${dbConfig.host}:${dbConfig.port} as user '${dbConfig.user}'...`);
   console.log('=====================================================');
 
   const check = await testConnection();
@@ -24,6 +30,32 @@ export async function runMigrations(): Promise<boolean> {
   const pool = await getDbPool();
 
   try {
+    // Check if tables already exist
+    const [existingTables]: any = await pool.query('SHOW TABLES');
+    const tableCount = Array.isArray(existingTables) ? existingTables.length : 0;
+
+    // Safety guard: If tables already exist and RUN_MIGRATIONS is not explicitly set to 'force',
+    // preserve all existing data, tables, admin credentials and patient records.
+    if (tableCount > 0 && process.env.RUN_MIGRATIONS !== 'force') {
+      console.log(`\n📊 Existing database tables found (${tableCount} tables).`);
+      console.log('Preserving all existing records and schema (safe mode - no re-seeding or table modification).');
+      console.log('\n📊 Database Summary (smart_care_hospital):');
+      for (const t of existingTables) {
+        const tableName = Object.values(t)[0] as string;
+        try {
+          const [countRes]: any = await pool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
+          console.log(`  - ${tableName.padEnd(24)}: ${countRes[0]?.count ?? 0} records`);
+        } catch {
+          console.log(`  - ${tableName.padEnd(24)}: active`);
+        }
+      }
+      console.log('\n✅ Database is verified and ready.');
+      return true;
+    }
+
+    // Only if database has no tables (fresh database) or RUN_MIGRATIONS === 'force'
+    console.log('\n⚠️ No existing tables found or RUN_MIGRATIONS=force. Initializing database schema...');
+
     const schemaPath = path.resolve(process.cwd(), 'server/database/schema.sql');
     const seedPath = path.resolve(process.cwd(), 'server/database/seed.sql');
 
@@ -41,13 +73,13 @@ export async function runMigrations(): Promise<boolean> {
       console.log('✅ Initial seed data inserted/verified successfully!');
     }
 
-    // Verify tables
+    // Verify tables after creation
     const [tables]: any = await pool.query('SHOW TABLES');
     console.log('\n📊 Database Summary (smart_care_hospital):');
     for (const t of tables) {
       const tableName = Object.values(t)[0] as string;
       const [countRes]: any = await pool.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
-      console.log(`  - ${tableName.padEnd(24)}: ${countRes[0].count} records`);
+      console.log(`  - ${tableName.padEnd(24)}: ${countRes[0]?.count ?? 0} records`);
     }
 
     console.log('\n🎉 Database migration and seeding completed successfully!');
