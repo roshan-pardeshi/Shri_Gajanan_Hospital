@@ -169,3 +169,17 @@ export async function testConnection(
     if (timer) clearTimeout(timer);
   }
 }
+
+/**
+ * Safely drains and closes the database connection pool on server shutdown
+ */
+export async function closeDbPool(): Promise<void> {
+  if (pool) {
+    try {
+      await pool.end();
+      pool = null;
+    } catch (err: any) {
+      console.warn('[MySQL Pool Close Notice]:', err?.message || err);
+    }
+  }
+}
