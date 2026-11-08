@@ -250,22 +250,6 @@ router.post('/admin-login', async (req: Request, res: Response) => {
   }
 });
 
-    return res.json({
-      success: true,
-      token,
-      user: {
-        ...safeProfile,
-        role: 'admin',
-        is_admin_verified: true,
-      },
-      isAdmin: true,
-    });
-  } catch (err: any) {
-    console.error('Admin login error:', err);
-    return res.status(500).json({ error: err.message || 'Admin login failed' });
-  }
-});
-
 // Current User Session verification
 router.get('/me', authenticateToken, async (req: Request, res: Response) => {
   try {
