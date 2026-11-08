@@ -7,7 +7,7 @@ import fs from 'fs';
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Detect if connecting to a cloud database (TiDB Cloud, AWS RDS, etc.)
-const isCloudDb = Boolean(
+export const isCloudDb = Boolean(
   process.env.DB_SSL === 'true' ||
   (process.env.DB_HOST && !['localhost', '127.0.0.1'].includes(process.env.DB_HOST))
 );
@@ -77,7 +77,7 @@ export async function getDbPool(): Promise<mysql.Pool> {
     }
   }
 
-  // 2. Create the connection pool with secure SSL/TLS support
+  // 2. Create the connection pool with secure SSL/TLS and cloud connection resilience
   pool = mysql.createPool({
     host: dbConfig.host,
     port: dbConfig.port,
@@ -91,8 +91,16 @@ export async function getDbPool(): Promise<mysql.Pool> {
     decimalNumbers: true,
     multipleStatements: true,
     enableKeepAlive: true,
-    keepAliveInitialDelay: 10000,
+    keepAliveInitialDelay: 0,
+    connectTimeout: 10000,
+    idleTimeout: 30000,
+    maxIdle: 5,
     dateStrings: true,
+  });
+
+  // Handle background pool errors cleanly so stale connection terminations don't crash Node
+  pool.on('error', (err: any) => {
+    console.warn('[MySQL Pool Notice]:', err?.code || err?.message || 'Connection event');
   });
 
   return pool;
@@ -122,12 +130,42 @@ export async function withTransaction<T>(
   }
 }
 
-export async function testConnection(): Promise<{ success: boolean; message: string }> {
-  try {
+/**
+ * Validates database connectivity with a strict timeout to ensure
+ * health checks and status endpoints never hang indefinitely.
+ */
+export async function testConnection(
+  timeoutMs: number = 3000
+): Promise<{ success: boolean; message: string; latencyMs?: number }> {
+  const startTime = Date.now();
+  let timer: NodeJS.Timeout | null = null;
+
+  const timeoutPromise = new Promise<{ success: boolean; message: string }>((_, reject) => {
+    timer = setTimeout(() => {
+      reject(new Error(`Database check timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  const queryPromise = (async () => {
     const p = await getDbPool();
     const [res] = await p.query('SELECT 1 AS check_ok');
-    return { success: true, message: 'Database connection successfully established.' };
+    return {
+      success: true,
+      message: 'Database connection successfully established.',
+      latencyMs: Date.now() - startTime,
+    };
+  })();
+
+  try {
+    const result = await Promise.race([queryPromise, timeoutPromise]);
+    return result;
   } catch (err: any) {
-    return { success: false, message: err.message || 'Failed to connect to database.' };
+    return {
+      success: false,
+      message: err?.message || 'Failed to connect to database.',
+      latencyMs: Date.now() - startTime,
+    };
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
