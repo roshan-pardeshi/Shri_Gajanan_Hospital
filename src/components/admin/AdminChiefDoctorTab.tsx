@@ -16,6 +16,7 @@ import {
 import defaultDoctorPhoto from '../../assets/doctor.jpeg';
 import { ChiefDoctorProfile } from '../../types';
 import { dataService } from '../../services/dataService';
+import { validateName, validateExperience } from '../../utils/validation';
 
 interface AdminChiefDoctorTabProps {
   onRefreshDoctors?: () => Promise<void> | void;
@@ -86,12 +87,28 @@ export const AdminChiefDoctorTab: React.FC<AdminChiefDoctorTabProps> = ({
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true);
     setSuccessMsg(null);
     setErrorMsg(null);
 
+    const nameCheck = validateName(form.name, 'Doctor full name');
+    if (!nameCheck.isValid) {
+      setErrorMsg(nameCheck.error || 'Please enter a valid doctor name.');
+      return;
+    }
+
+    const expCheck = validateExperience(form.experience_years);
+    if (!expCheck.isValid) {
+      setErrorMsg(expCheck.error || 'Experience must be a positive number between 0 and 70.');
+      return;
+    }
+
+    setSaving(true);
     try {
-      const updated = await dataService.updateChiefDoctorProfile(form);
+      const updated = await dataService.updateChiefDoctorProfile({
+        ...form,
+        name: nameCheck.value!,
+        experience_years: expCheck.value!,
+      });
       setProfile(updated);
       setSuccessMsg('Chief Doctor profile saved and updated successfully!');
       if (onRefreshDoctors) {

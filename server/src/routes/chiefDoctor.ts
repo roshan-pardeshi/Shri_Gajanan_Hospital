@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { validateName } from '../utils/validation';
 
 const router = Router();
 
@@ -143,7 +144,12 @@ router.put('/', authenticateToken, requireAdmin, async (req: Request, res: Respo
       welcome_message,
     } = req.body;
 
-    if (!name || !qualifications || !speciality) {
+    const nameCheck = validateName(name, 'Doctor name');
+    if (!nameCheck.isValid) {
+      return res.status(400).json({ error: nameCheck.error });
+    }
+
+    if (!qualifications || !speciality) {
       return res.status(400).json({ error: 'Name, qualifications, and speciality are required.' });
     }
 

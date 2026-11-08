@@ -46,6 +46,7 @@ export const PatientReviewModal: React.FC<PatientReviewModalProps> = ({
   const [loading, setLoading] = useState<boolean>(false);
   const [fetchingData, setFetchingData] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [reviewErrors, setReviewErrors] = useState<Record<string, string>>({});
   const [submittedSuccess, setSubmittedSuccess] = useState<boolean>(false);
 
   // Rating labels for helpful feedback
@@ -157,10 +158,19 @@ export const PatientReviewModal: React.FC<PatientReviewModalProps> = ({
       return;
     }
 
+    const errs: Record<string, string> = {};
     if (!reviewMessage.trim() || reviewMessage.trim().length < 10) {
-      setErrorMsg('Please share at least 10 characters in your feedback message.');
+      errs.reviewMessage = 'Please share at least 10 characters in your feedback message.';
+    }
+    if (rating < 1 || rating > 5) {
+      errs.rating = 'Please provide a star rating between 1 and 5.';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setReviewErrors(errs);
       return;
     }
+    setReviewErrors({});
 
     setLoading(true);
     setErrorMsg(null);
@@ -438,9 +448,19 @@ export const PatientReviewModal: React.FC<PatientReviewModalProps> = ({
                   maxLength={1000}
                   placeholder="Share details of your consultation, doctor's explanation, hospital amenities, or recovery experience..."
                   value={reviewMessage}
-                  onChange={(e) => setReviewMessage(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden resize-none leading-relaxed"
+                  onChange={(e) => {
+                    setReviewMessage(e.target.value);
+                    if (reviewErrors.reviewMessage) setReviewErrors(prev => ({ ...prev, reviewMessage: '' }));
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden resize-none leading-relaxed ${
+                    reviewErrors.reviewMessage
+                      ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                      : 'border-slate-200 focus:ring-teal-500'
+                  }`}
                 />
+                {reviewErrors.reviewMessage && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{reviewErrors.reviewMessage}</p>
+                )}
                 <div className="flex justify-between items-center text-[10px] text-slate-400 mt-1">
                   <span>Minimum 10 characters</span>
                   <span>{reviewMessage.length}/1000</span>

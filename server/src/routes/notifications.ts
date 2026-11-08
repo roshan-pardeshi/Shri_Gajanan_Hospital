@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../db';
 import { optionalAuth, authenticateToken } from '../middleware/auth';
+import { validateRequired } from '../utils/validation';
 
 const router = Router();
 
@@ -60,8 +61,15 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const { user_id, title, message, type, reference_id } = req.body;
-    if (!title || !message) {
-      return res.status(400).json({ error: 'Title and message are required' });
+
+    const titleCheck = validateRequired(title, 'Title', 3);
+    if (!titleCheck.isValid) {
+      return res.status(400).json({ error: titleCheck.error });
+    }
+
+    const messageCheck = validateRequired(message, 'Message', 5);
+    if (!messageCheck.isValid) {
+      return res.status(400).json({ error: messageCheck.error });
     }
 
     const id = crypto.randomUUID();

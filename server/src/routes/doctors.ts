@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { query } from '../db';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { validateName, validateRequired } from '../utils/validation';
 
 const router = Router();
 
@@ -207,8 +208,28 @@ router.post('/', authenticateToken, requireAdmin, async (req: Request, res: Resp
       working_days,
     } = req.body;
 
-    if (!name || !speciality_id || !qualifications) {
-      return res.status(400).json({ error: 'Name, speciality, and qualifications are required' });
+    const nameCheck = validateName(name, 'Doctor name');
+    if (!nameCheck.isValid) {
+      return res.status(400).json({ error: nameCheck.error });
+    }
+
+    if (!speciality_id) {
+      return res.status(400).json({ error: 'Speciality is required' });
+    }
+
+    const qualCheck = validateRequired(qualifications, 'Qualifications');
+    if (!qualCheck.isValid) {
+      return res.status(400).json({ error: qualCheck.error });
+    }
+
+    const parsedExp = experience_years !== undefined ? Number(experience_years) : 1;
+    if (isNaN(parsedExp) || parsedExp < 0 || parsedExp > 70) {
+      return res.status(400).json({ error: 'Experience must be a number between 0 and 70 years' });
+    }
+
+    const parsedFee = consultation_fee !== undefined ? Number(consultation_fee) : 500;
+    if (isNaN(parsedFee) || parsedFee < 0) {
+      return res.status(400).json({ error: 'Consultation fee must be a valid positive number' });
     }
 
     const doctorId = crypto.randomUUID();
@@ -221,12 +242,12 @@ router.post('/', authenticateToken, requireAdmin, async (req: Request, res: Resp
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 4.90, 0, TRUE)`,
       [
         doctorId,
-        name,
+        nameCheck.value!,
         speciality_id,
-        qualifications,
-        experience_years || 1,
+        qualCheck.value!,
+        parsedExp,
         bio || '',
-        consultation_fee || 500,
+        parsedFee,
         photo_url || null,
         availability_status || 'Available',
         slot_duration_minutes || 30,
@@ -255,6 +276,30 @@ router.put('/:id', authenticateToken, requireAdmin, async (req: Request, res: Re
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    if (updates.name !== undefined) {
+      const nameCheck = validateName(updates.name, 'Doctor name');
+      if (!nameCheck.isValid) {
+        return res.status(400).json({ error: nameCheck.error });
+      }
+      updates.name = nameCheck.value!;
+    }
+
+    if (updates.experience_years !== undefined) {
+      const parsedExp = Number(updates.experience_years);
+      if (isNaN(parsedExp) || parsedExp < 0 || parsedExp > 70) {
+        return res.status(400).json({ error: 'Experience must be between 0 and 70 years' });
+      }
+      updates.experience_years = parsedExp;
+    }
+
+    if (updates.consultation_fee !== undefined) {
+      const parsedFee = Number(updates.consultation_fee);
+      if (isNaN(parsedFee) || parsedFee < 0) {
+        return res.status(400).json({ error: 'Consultation fee must be a positive number' });
+      }
+      updates.consultation_fee = parsedFee;
+    }
 
     const allowedFields = [
       'name',

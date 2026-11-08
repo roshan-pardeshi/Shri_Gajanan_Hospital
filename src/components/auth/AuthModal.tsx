@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, User, Phone, AlertCircle, ShieldAlert, KeyRound, ArrowRight } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { validateName, validateMobile, validateEmail, validatePassword } from '../../utils/validation';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Register Form
   const [fullName, setFullName] = useState('');
@@ -36,9 +38,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      setErrors({ email: emailCheck.error || 'Please enter a valid email address.' });
+      return;
+    }
+    setErrors({});
+
     setLoading(true);
     try {
-      await login(email, password);
+      await login(emailCheck.value!, password);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Unable to sign in. Please verify your credentials or try again.');
@@ -50,16 +60,45 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+
+    const newErrors: Record<string, string> = {};
+
+    const nameCheck = validateName(fullName, 'Full name');
+    if (!nameCheck.isValid) {
+      newErrors.fullName = nameCheck.error || 'Please enter a valid full name.';
+    }
+
+    const mobileCheck = validateMobile(mobileNumber, true);
+    if (!mobileCheck.isValid) {
+      newErrors.mobileNumber = mobileCheck.error || 'Please enter a valid 10-digit mobile number.';
+    }
+
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      newErrors.email = emailCheck.error || 'Please enter a valid email address.';
+    }
+
+    const passCheck = validatePassword(registerPassword, 6);
+    if (!passCheck.isValid) {
+      newErrors.registerPassword = passCheck.error || 'Password must be at least 6 characters.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
+
     setLoading(true);
     try {
       await register({
-        full_name: fullName,
-        mobile_number: mobileNumber,
-        email,
+        full_name: nameCheck.value!,
+        mobile_number: mobileCheck.value!,
+        email: emailCheck.value!,
         date_of_birth: dob,
         gender,
         address,
-      }, registerPassword);
+      }, passCheck.value!);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Registration failed. Please check the entered information.');
@@ -71,6 +110,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   // Quick Patient Demo for evaluators
   const handleDemoPatient = async () => {
     setErrorMsg(null);
+    setErrors({});
     setLoading(true);
     try {
       await login('suresh.patil@example.com', undefined, 'Suresh Patil');
@@ -173,10 +213,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   required
                   placeholder="patient@example.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                  }}
+                  className={`w-full pl-9 pr-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                    errors.email
+                      ? 'border-rose-400 bg-rose-50/20 focus:ring-rose-400 text-rose-900'
+                      : 'border-slate-200 focus:ring-teal-500'
+                  }`}
                 />
               </div>
+              {errors.email && (
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -211,9 +261,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 placeholder="e.g. Suresh Patil"
                 value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                onChange={(e) => {
+                  setFullName(e.target.value);
+                  if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                  errors.fullName
+                    ? 'border-rose-400 bg-rose-50/20 focus:ring-rose-400 text-rose-900'
+                    : 'border-slate-200 focus:ring-teal-500'
+                }`}
               />
+              {errors.fullName && (
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.fullName}</p>
+              )}
             </div>
 
             <div>
@@ -221,11 +281,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <input
                 type="tel"
                 required
-                placeholder="+91 98XXX XXXXX"
+                placeholder="e.g. 9876543210"
                 value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                onChange={(e) => {
+                  setMobileNumber(e.target.value);
+                  if (errors.mobileNumber) setErrors((prev) => ({ ...prev, mobileNumber: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                  errors.mobileNumber
+                    ? 'border-rose-400 bg-rose-50/20 focus:ring-rose-400 text-rose-900'
+                    : 'border-slate-200 focus:ring-teal-500'
+                }`}
               />
+              {errors.mobileNumber && (
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.mobileNumber}</p>
+              )}
             </div>
 
             <div>
@@ -235,9 +305,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 placeholder="patient@example.com"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (errors.email) setErrors((prev) => ({ ...prev, email: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                  errors.email
+                    ? 'border-rose-400 bg-rose-50/20 focus:ring-rose-400 text-rose-900'
+                    : 'border-slate-200 focus:ring-teal-500'
+                }`}
               />
+              {errors.email && (
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.email}</p>
+              )}
             </div>
 
             <div>
@@ -247,9 +327,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 required
                 placeholder="Minimum 6 characters"
                 value={registerPassword}
-                onChange={(e) => setRegisterPassword(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                onChange={(e) => {
+                  setRegisterPassword(e.target.value);
+                  if (errors.registerPassword) setErrors((prev) => ({ ...prev, registerPassword: '' }));
+                }}
+                className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                  errors.registerPassword
+                    ? 'border-rose-400 bg-rose-50/20 focus:ring-rose-400 text-rose-900'
+                    : 'border-slate-200 focus:ring-teal-500'
+                }`}
               />
+              {errors.registerPassword && (
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">{errors.registerPassword}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-2">

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { HospitalSettings } from '../../types';
 import { dataService } from '../../services/dataService';
+import { validateName, validateMobile } from '../../utils/validation';
 
 interface ContactSectionProps {
   settings?: HospitalSettings | null;
@@ -25,6 +26,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSe
     department: 'General Enquiry',
     message: ''
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (propSettings) {
@@ -46,13 +48,30 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSe
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.name.trim() || !formData.phone.trim() || submitting) return;
+    if (submitting) return;
+
+    const errs: Record<string, string> = {};
+    const nameCheck = validateName(formData.name, 'Full name');
+    if (!nameCheck.isValid) {
+      errs.name = nameCheck.error || 'Please enter a valid full name.';
+    }
+
+    const phoneCheck = validateMobile(formData.phone, true);
+    if (!phoneCheck.isValid) {
+      errs.phone = phoneCheck.error || 'Please enter a valid 10-digit mobile number.';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setFormErrors(errs);
+      return;
+    }
+    setFormErrors({});
 
     setSubmitting(true);
     try {
       await dataService.createNotification({
-        title: `Patient Query / Feedback: ${formData.name}`,
-        message: `Department/Concern: ${formData.department}\nPhone: ${formData.phone}\nMessage: ${formData.message?.trim() || 'No additional message provided.'}`,
+        title: `Patient Query / Feedback: ${nameCheck.value!}`,
+        message: `Department/Concern: ${formData.department}\nPhone: ${phoneCheck.value!}\nMessage: ${formData.message?.trim() || 'No additional message provided.'}`,
         type: 'general',
       });
       window.dispatchEvent(new CustomEvent('new-hospital-notification'));
@@ -229,9 +248,19 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSe
                       required
                       placeholder="e.g. Ramesh Kulkarni"
                       value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setFormData({ ...formData, name: e.target.value });
+                        if (formErrors.name) setFormErrors(prev => ({ ...prev, name: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                        formErrors.name
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.name && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.name}</p>
+                    )}
                   </div>
 
                   <div>
@@ -241,11 +270,21 @@ export const ContactSection: React.FC<ContactSectionProps> = ({ settings: propSe
                     <input
                       type="tel"
                       required
-                      placeholder="+91 98XXX XXXXX"
+                      placeholder="e.g. 9876543210"
                       value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setFormData({ ...formData, phone: e.target.value });
+                        if (formErrors.phone) setFormErrors(prev => ({ ...prev, phone: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                        formErrors.phone
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.phone && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.phone}</p>
+                    )}
                   </div>
 
                   <div>

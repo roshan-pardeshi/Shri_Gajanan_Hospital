@@ -149,6 +149,14 @@ export const AdminLaboratoryTab: React.FC<AdminLaboratoryTabProps> = ({
       return;
     }
 
+    if (testForm.indicative_price !== undefined && testForm.indicative_price !== null && testForm.indicative_price !== ('' as any)) {
+      const priceNum = Number(testForm.indicative_price);
+      if (isNaN(priceNum) || priceNum < 0) {
+        showError('Test price must be a valid positive number.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     setFeedbackError(null);
 

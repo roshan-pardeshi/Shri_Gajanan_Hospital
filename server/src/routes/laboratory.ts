@@ -83,6 +83,13 @@ router.post('/tests', authenticateToken, requireAdmin, async (req: Request, res:
       return res.status(400).json({ error: 'Name, slug, category, and description are required' });
     }
 
+    if (indicative_price !== undefined && indicative_price !== null && indicative_price !== '') {
+      const numPrice = Number(indicative_price);
+      if (isNaN(numPrice) || numPrice < 0) {
+        return res.status(400).json({ error: 'Test price must be a valid positive number' });
+      }
+    }
+
     const id = crypto.randomUUID();
 
     await query(

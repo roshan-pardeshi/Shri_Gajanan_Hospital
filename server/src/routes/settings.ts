@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db';
 import { authenticateToken, requireAdmin } from '../middleware/auth';
+import { validateEmail, validatePincode } from '../utils/validation';
 
 const router = Router();
 
@@ -41,6 +42,23 @@ router.get('/', async (_req: Request, res: Response) => {
 router.put('/', authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const updates = req.body;
+
+    if (updates.email !== undefined && updates.email !== '') {
+      const emailCheck = validateEmail(updates.email, false);
+      if (!emailCheck.isValid) {
+        return res.status(400).json({ error: emailCheck.error });
+      }
+      updates.email = emailCheck.value!;
+    }
+
+    if (updates.pincode !== undefined && updates.pincode !== '') {
+      const pinCheck = validatePincode(updates.pincode, false);
+      if (!pinCheck.isValid) {
+        return res.status(400).json({ error: pinCheck.error });
+      }
+      updates.pincode = pinCheck.value!;
+    }
+
     const allowed = [
       'hospital_name',
       'tagline',

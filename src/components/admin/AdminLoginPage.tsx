@@ -14,6 +14,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { validateEmail } from '../../utils/validation';
 
 interface AdminLoginPageProps {
   onNavigateHome: () => void;
@@ -88,14 +89,20 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     setErrorMessage(null);
     setIsUnauthorizedRole(false);
 
-    if (!email.trim() || !password) {
-      setErrorMessage('Please provide both your official administrator email and password.');
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      setErrorMessage(emailCheck.error || 'Please enter a valid official administrator email address.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Please provide your administrator password.');
       return;
     }
 
     setLoading(true);
     try {
-      const res = await adminLogin(email, password);
+      const res = await adminLogin(emailCheck.value!, password);
       if (res.success) {
         onLoginSuccess();
       } else {
@@ -115,14 +122,15 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
     e.preventDefault();
     setForgotFeedback(null);
 
-    if (!forgotEmail.trim()) {
-      setForgotFeedback('Please enter your email address.');
+    const emailCheck = validateEmail(forgotEmail, true);
+    if (!emailCheck.isValid) {
+      setForgotFeedback(emailCheck.error || 'Please enter a valid email address.');
       return;
     }
 
     setForgotLoading(true);
     try {
-      const res = await requestPasswordReset(forgotEmail);
+      const res = await requestPasswordReset(emailCheck.value!);
       setForgotFeedback(res.message);
     } catch (err) {
       setForgotFeedback('If an authorized account is registered with this email, password recovery instructions have been sent.');

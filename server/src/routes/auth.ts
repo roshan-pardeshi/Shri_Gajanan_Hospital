@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { query } from '../db';
 import { generateToken, authenticateToken } from '../middleware/auth';
+import { validateName, validateMobile, validateEmail, validatePassword } from '../utils/validation';
 
 const router = Router();
 
@@ -11,11 +12,33 @@ router.post('/register', async (req: Request, res: Response) => {
   try {
     const { email, password, full_name, mobile_number, date_of_birth, gender, address } = req.body;
 
-    if (!email || !full_name) {
-      return res.status(400).json({ error: 'Email and full name are required' });
+    // Strict Name Validation
+    const nameCheck = validateName(full_name, 'Full name');
+    if (!nameCheck.isValid) {
+      return res.status(400).json({ error: nameCheck.error });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    // Strict Email Validation
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      return res.status(400).json({ error: emailCheck.error });
+    }
+
+    // Strict Mobile Number Validation
+    const mobileCheck = validateMobile(mobile_number, true);
+    if (!mobileCheck.isValid) {
+      return res.status(400).json({ error: mobileCheck.error });
+    }
+
+    // Strict Password Validation
+    const passCheck = validatePassword(password, 6);
+    if (!passCheck.isValid) {
+      return res.status(400).json({ error: passCheck.error });
+    }
+
+    const cleanEmail = emailCheck.value!;
+    const cleanName = nameCheck.value!;
+    const cleanMobile = mobileCheck.value!;
 
     // Check if email already registered
     const existing = await query<any[]>('SELECT id FROM profiles WHERE LOWER(email) = ?', [cleanEmail]);
@@ -24,7 +47,7 @@ router.post('/register', async (req: Request, res: Response) => {
     }
 
     const userId = crypto.randomUUID();
-    const passwordHash = password ? await bcrypt.hash(password, 10) : null;
+    const passwordHash = await bcrypt.hash(passCheck.value!, 10);
 
     // Insert into profiles (default role is strictly patient)
     await query(
@@ -34,8 +57,8 @@ router.post('/register', async (req: Request, res: Response) => {
         userId,
         cleanEmail,
         passwordHash,
-        full_name.trim(),
-        mobile_number || '',
+        cleanName,
+        cleanMobile,
         date_of_birth || null,
         gender || null,
         address || null,
@@ -51,8 +74,8 @@ router.post('/register', async (req: Request, res: Response) => {
     const userProfile = {
       id: userId,
       email: cleanEmail,
-      full_name: full_name.trim(),
-      mobile_number: mobile_number || '',
+      full_name: cleanName,
+      mobile_number: cleanMobile,
       date_of_birth: date_of_birth || null,
       gender: gender || null,
       address: address || null,
@@ -76,18 +99,26 @@ router.post('/register', async (req: Request, res: Response) => {
 router.post('/login', async (req: Request, res: Response) => {
   try {
     const { email, password, name } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      return res.status(400).json({ error: emailCheck.error });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmail = emailCheck.value!;
     const rows = await query<any[]>('SELECT * FROM profiles WHERE LOWER(email) = ?', [cleanEmail]);
 
     if (rows.length === 0) {
       // If user does not exist but provides name/email, create a patient account seamlessly
       const userId = crypto.randomUUID();
       const passwordHash = password ? await bcrypt.hash(password, 10) : null;
-      const userName = name || cleanEmail.split('@')[0].replace('.', ' ').toUpperCase();
+      let userName = cleanEmail.split('@')[0].replace('.', ' ').toUpperCase();
+      if (name && typeof name === 'string' && name.trim()) {
+        const nameCheck = validateName(name, 'Full name');
+        if (nameCheck.isValid) {
+          userName = nameCheck.value!;
+        }
+      }
 
       await query(
         `INSERT INTO profiles (id, email, password_hash, full_name, mobile_number, role)
@@ -156,11 +187,16 @@ router.post('/login', async (req: Request, res: Response) => {
 router.post('/admin-login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      return res.status(400).json({ error: emailCheck.error });
+    }
+
+    const cleanEmail = emailCheck.value!;
     const rows = await query<any[]>('SELECT * FROM profiles WHERE LOWER(email) = ?', [cleanEmail]);
 
     if (rows.length === 0) {
@@ -197,6 +233,22 @@ router.post('/admin-login', async (req: Request, res: Response) => {
     const token = generateToken({ id: adminRecord.id, email: adminRecord.email, role: 'admin' });
 
     const { password_hash, ...safeProfile } = adminRecord;
+
+    return res.json({
+      success: true,
+      token,
+      user: {
+        ...safeProfile,
+        role: 'admin',
+        is_admin_verified: true,
+      },
+      isAdmin: true,
+    });
+  } catch (err: any) {
+    console.error('Admin login error:', err);
+    return res.status(500).json({ error: err.message || 'Admin login failed' });
+  }
+});
 
     return res.json({
       success: true,
@@ -276,6 +328,26 @@ router.put('/profile', authenticateToken, async (req: Request, res: Response) =>
     const userId = req.user!.id;
     const { full_name, mobile_number, date_of_birth, gender, address } = req.body;
 
+    let cleanName: string | undefined;
+    if (full_name !== undefined) {
+      const nameCheck = validateName(full_name, 'Full name');
+      if (!nameCheck.isValid) {
+        return res.status(400).json({ error: nameCheck.error });
+      }
+      cleanName = nameCheck.value!;
+    }
+
+    let cleanMobile: string | undefined;
+    if (mobile_number !== undefined && mobile_number !== '') {
+      const mobileCheck = validateMobile(mobile_number, true);
+      if (!mobileCheck.isValid) {
+        return res.status(400).json({ error: mobileCheck.error });
+      }
+      cleanMobile = mobileCheck.value!;
+    } else if (mobile_number === '') {
+      cleanMobile = '';
+    }
+
     await query(
       `UPDATE profiles
        SET full_name = COALESCE(?, full_name),
@@ -285,7 +357,7 @@ router.put('/profile', authenticateToken, async (req: Request, res: Response) =>
            address = COALESCE(?, address),
            updated_at = NOW()
        WHERE id = ?`,
-      [full_name, mobile_number, date_of_birth, gender, address, userId]
+      [cleanName ?? null, cleanMobile ?? null, date_of_birth || null, gender || null, address || null, userId]
     );
 
     const updated = await query<any[]>('SELECT * FROM profiles WHERE id = ?', [userId]);
@@ -303,8 +375,9 @@ router.put('/change-password', authenticateToken, async (req: Request, res: Resp
     const userId = req.user!.id;
     const { currentPassword, newPassword } = req.body;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+    const passCheck = validatePassword(newPassword, 6);
+    if (!passCheck.isValid) {
+      return res.status(400).json({ error: passCheck.error });
     }
 
     const rows = await query<any[]>('SELECT * FROM profiles WHERE id = ?', [userId]);
@@ -320,7 +393,7 @@ router.put('/change-password', authenticateToken, async (req: Request, res: Resp
       }
     }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+    const newHash = await bcrypt.hash(passCheck.value!, 10);
     await query('UPDATE profiles SET password_hash = ?, updated_at = NOW() WHERE id = ?', [newHash, userId]);
 
     return res.json({ success: true, message: 'Password updated successfully!' });
@@ -330,7 +403,15 @@ router.put('/change-password', authenticateToken, async (req: Request, res: Resp
 });
 
 // Generic Password Reset Request
-router.post('/forgot-password', async (_req: Request, res: Response) => {
+router.post('/forgot-password', async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (email) {
+    const emailCheck = validateEmail(email, true);
+    if (!emailCheck.isValid) {
+      return res.status(400).json({ error: emailCheck.error });
+    }
+  }
+
   return res.json({
     success: true,
     message: 'If an authorized account is registered with this email, password recovery instructions have been sent.',

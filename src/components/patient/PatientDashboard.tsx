@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Calendar, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  FileText, 
-  RotateCcw, 
-  XCircle, 
-  User, 
-  Bell, 
-  Plus, 
-  Printer, 
+import {
+  Calendar,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  FileText,
+  RotateCcw,
+  XCircle,
+  User,
+  Bell,
+  Plus,
+  Printer,
   X,
   Stethoscope,
   ChevronRight,
@@ -25,6 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime12 } from '../../lib/utils';
 import { RescheduleModal } from '../booking/RescheduleModal';
 import { CancelModal } from '../booking/CancelModal';
+import { validateName, validateMobile, validateEmail } from '../../utils/validation';
 
 interface PatientDashboardProps {
   onOpenBooking: () => void;
@@ -35,7 +36,7 @@ interface PatientDashboardProps {
   onOpenReviewModal?: (doctorId?: string, appointmentId?: string) => void;
 }
 
-export const PatientDashboard: React.FC<PatientDashboardProps> = ({ 
+export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   onOpenBooking,
   schemes: initialSchemes,
   doctors: initialDoctors,
@@ -44,11 +45,11 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   onOpenReviewModal
 }) => {
   const { user, updateProfile } = useAuth();
-  
+
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<'all' | 'upcoming' | 'pending' | 'history' | 'schemes' | 'profile' | 'notifications'>('all');
-  
+
   // Schemes State
   const [schemes, setSchemes] = useState<HealthScheme[]>(initialSchemes || []);
   const [schemeFilter, setSchemeFilter] = useState<'all' | 'Accepted' | 'Under Verification'>('all');
@@ -71,6 +72,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
     address: user?.address || '',
   });
   const [profileSaved, setProfileSaved] = useState<boolean>(false);
+  const [profileErrors, setProfileErrors] = useState<Record<string, string>>({});
+  const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
 
   // Notifications State
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -150,9 +153,44 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateProfile(profileForm);
-    setProfileSaved(true);
-    setTimeout(() => setProfileSaved(false), 3000);
+    setProfileErrorMsg(null);
+
+    const errs: Record<string, string> = {};
+    const nameCheck = validateName(profileForm.full_name, 'Full legal name');
+    if (!nameCheck.isValid) {
+      errs.full_name = nameCheck.error || 'Please enter a valid full name.';
+    }
+
+    const mobileCheck = validateMobile(profileForm.mobile_number, true);
+    if (!mobileCheck.isValid) {
+      errs.mobile_number = mobileCheck.error || 'Please enter a valid 10-digit mobile number.';
+    }
+
+    if (profileForm.email && profileForm.email.trim()) {
+      const emailCheck = validateEmail(profileForm.email, false);
+      if (!emailCheck.isValid) {
+        errs.email = emailCheck.error || 'Please enter a valid email address.';
+      }
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setProfileErrors(errs);
+      setProfileErrorMsg('Please correct the highlighted form errors.');
+      return;
+    }
+    setProfileErrors({});
+
+    try {
+      await updateProfile({
+        ...profileForm,
+        full_name: nameCheck.value!,
+        mobile_number: mobileCheck.value!,
+      });
+      setProfileSaved(true);
+      setTimeout(() => setProfileSaved(false), 3000);
+    } catch (err: any) {
+      setProfileErrorMsg(err.message || 'Failed to update profile.');
+    }
   };
 
   // Status Badge Helper
@@ -238,7 +276,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
   return (
     <section className="py-10 bg-slate-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
-        
+
         {/* Welcome Header */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-card mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex items-center gap-4">
@@ -273,7 +311,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
         {/* Quick Stats & Health Schemes Status Overview */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
           {/* Card 1: Appointments Summary */}
-          <div 
+          <div
             onClick={() => setActiveTab('upcoming')}
             className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-card hover:border-teal-400 cursor-pointer transition-all flex items-center justify-between group"
           >
@@ -292,7 +330,7 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           </div>
 
           {/* Card 2: Pending Bookings */}
-          <div 
+          <div
             onClick={() => setActiveTab('pending')}
             className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-card hover:border-amber-400 cursor-pointer transition-all flex items-center justify-between group"
           >
@@ -311,13 +349,12 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           </div>
 
           {/* Card 3: Govt Health Schemes Status Card */}
-          <div 
+          <div
             onClick={() => setActiveTab('schemes')}
-            className={`bg-white rounded-2xl p-5 border shadow-card cursor-pointer transition-all flex items-center justify-between group ${
-              underVerificationCount > 0 
-                ? 'border-amber-300 ring-2 ring-amber-100 hover:border-amber-500 bg-gradient-to-br from-white via-white to-amber-50/50' 
-                : 'border-slate-200/90 hover:border-teal-400'
-            }`}
+            className={`bg-white rounded-2xl p-5 border shadow-card cursor-pointer transition-all flex items-center justify-between group ${underVerificationCount > 0
+              ? 'border-amber-300 ring-2 ring-amber-100 hover:border-amber-500 bg-gradient-to-br from-white via-white to-amber-50/50'
+              : 'border-slate-200/90 hover:border-teal-400'
+              }`}
           >
             <div className="space-y-1">
               <div className="flex items-center gap-2">
@@ -336,9 +373,8 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 <span className="text-xs text-emerald-600 font-bold">Empaneled & Cashless</span>
               </div>
             </div>
-            <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${
-              underVerificationCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-teal-50 text-teal-600'
-            }`}>
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform ${underVerificationCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-teal-50 text-teal-600'
+              }`}>
               <ShieldCheck className="w-6 h-6" />
             </div>
           </div>
@@ -349,11 +385,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'all'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'all'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             All Bookings ({appointments.length})
           </button>
@@ -361,11 +396,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('upcoming')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'upcoming'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'upcoming'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             Upcoming Confirmed ({appointments.filter(a => ['Approved', 'Rescheduled'].includes(a.status)).length})
           </button>
@@ -373,11 +407,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'pending'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'pending'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             Pending Verification ({appointments.filter(a => ['Pending', 'Reschedule Requested'].includes(a.status)).length})
           </button>
@@ -385,20 +418,18 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('schemes')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-              activeTab === 'schemes'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${activeTab === 'schemes'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>Govt Health Schemes ({schemes.length})</span>
             {underVerificationCount > 0 && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border flex items-center gap-1 ${
-                activeTab === 'schemes'
-                  ? 'bg-amber-400 text-slate-950 border-amber-300'
-                  : 'bg-amber-100 text-amber-800 border-amber-300'
-              }`}>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border flex items-center gap-1 ${activeTab === 'schemes'
+                ? 'bg-amber-400 text-slate-950 border-amber-300'
+                : 'bg-amber-100 text-amber-800 border-amber-300'
+                }`}>
                 <Clock className="w-2.5 h-2.5 text-amber-700" />
                 {underVerificationCount} Under Verification
               </span>
@@ -408,11 +439,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('history')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'history'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'history'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             Past / Cancelled ({appointments.filter(a => ['Completed', 'Cancelled', 'Rejected'].includes(a.status)).length})
           </button>
@@ -420,11 +450,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('notifications')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'notifications'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'notifications'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             Notifications ({notifications.length})
           </button>
@@ -432,11 +461,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
           <button
             type="button"
             onClick={() => setActiveTab('profile')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              activeTab === 'profile'
-                ? 'bg-teal-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
-            }`}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${activeTab === 'profile'
+              ? 'bg-teal-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+              }`}
           >
             My Profile Settings
           </button>
@@ -638,33 +666,30 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   <button
                     type="button"
                     onClick={() => setSchemeFilter('all')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      schemeFilter === 'all'
-                        ? 'bg-teal-600 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${schemeFilter === 'all'
+                      ? 'bg-teal-600 text-white'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
                   >
                     All ({schemes.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => setSchemeFilter('Accepted')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      schemeFilter === 'Accepted'
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${schemeFilter === 'Accepted'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                      }`}
                   >
                     Empaneled ({acceptedSchemesCount})
                   </button>
                   <button
                     type="button"
                     onClick={() => setSchemeFilter('Under Verification')}
-                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
-                      schemeFilter === 'Under Verification'
-                        ? 'bg-amber-600 text-white'
-                        : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    }`}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${schemeFilter === 'Under Verification'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                      }`}
                   >
                     Under Verification ({underVerificationCount})
                   </button>
@@ -716,11 +741,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                 return (
                   <div
                     key={scheme.id}
-                    className={`bg-white rounded-3xl p-6 border shadow-card transition-all flex flex-col justify-between ${
-                      isUnderVerification
-                        ? 'border-amber-300 ring-2 ring-amber-200/50 hover:border-amber-400'
-                        : 'border-slate-200/90 hover:border-teal-400'
-                    }`}
+                    className={`bg-white rounded-3xl p-6 border shadow-card transition-all flex flex-col justify-between ${isUnderVerification
+                      ? 'border-amber-300 ring-2 ring-amber-200/50 hover:border-amber-400'
+                      : 'border-slate-200/90 hover:border-teal-400'
+                      }`}
                   >
                     <div>
                       {/* Top Badges */}
@@ -775,11 +799,10 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                       </div>
 
                       {/* Status Details / Notice */}
-                      <div className={`p-3 rounded-xl mb-4 text-xs ${
-                        isUnderVerification
-                          ? 'bg-amber-50 border border-amber-200 text-amber-800'
-                          : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                      }`}>
+                      <div className={`p-3 rounded-xl mb-4 text-xs ${isUnderVerification
+                        ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                        : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                        }`}>
                         <div className="flex items-center gap-2 font-bold mb-0.5">
                           {isUnderVerification ? (
                             <>
@@ -893,6 +916,13 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
               </div>
             )}
 
+            {profileErrorMsg && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{profileErrorMsg}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveProfile} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Full Legal Name *</label>
@@ -900,9 +930,19 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   type="text"
                   required
                   value={profileForm.full_name || ''}
-                  onChange={(e) => setProfileForm({ ...profileForm, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  onChange={(e) => {
+                    setProfileForm({ ...profileForm, full_name: e.target.value });
+                    if (profileErrors.full_name) setProfileErrors(prev => ({ ...prev, full_name: '' }));
+                  }}
+                  className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                    profileErrors.full_name
+                      ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                      : 'border-slate-200 focus:ring-teal-500'
+                  }`}
                 />
+                {profileErrors.full_name && (
+                  <p className="text-[11px] text-rose-600 mt-1 font-medium">{profileErrors.full_name}</p>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -912,9 +952,19 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                     type="tel"
                     required
                     value={profileForm.mobile_number || ''}
-                    onChange={(e) => setProfileForm({ ...profileForm, mobile_number: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    onChange={(e) => {
+                      setProfileForm({ ...profileForm, mobile_number: e.target.value });
+                      if (profileErrors.mobile_number) setProfileErrors(prev => ({ ...prev, mobile_number: '' }));
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                      profileErrors.mobile_number
+                        ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                        : 'border-slate-200 focus:ring-teal-500'
+                    }`}
                   />
+                  {profileErrors.mobile_number && (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">{profileErrors.mobile_number}</p>
+                  )}
                 </div>
 
                 <div>
@@ -922,9 +972,19 @@ export const PatientDashboard: React.FC<PatientDashboardProps> = ({
                   <input
                     type="email"
                     value={profileForm.email || ''}
-                    onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    onChange={(e) => {
+                      setProfileForm({ ...profileForm, email: e.target.value });
+                      if (profileErrors.email) setProfileErrors(prev => ({ ...prev, email: '' }));
+                    }}
+                    className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                      profileErrors.email
+                        ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                        : 'border-slate-200 focus:ring-teal-500'
+                    }`}
                   />
+                  {profileErrors.email && (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">{profileErrors.email}</p>
+                  )}
                 </div>
               </div>
 

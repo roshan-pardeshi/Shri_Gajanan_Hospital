@@ -19,6 +19,7 @@ import { Doctor, Speciality, Appointment } from '../../types';
 import { dataService, isUUID } from '../../services/dataService';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime12 } from '../../lib/utils';
+import { validateName, validateMobile, validateEmail, validateRequired } from '../../utils/validation';
 
 const isDoctorCurrentlyAvailable = (doc: Doctor): boolean => {
   // 1. Must be active in the system
@@ -85,6 +86,7 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
   const [patientEmail, setPatientEmail] = useState<string>(user?.email || '');
   const [reasonForVisit, setReasonForVisit] = useState<string>('');
   const [visitType, setVisitType] = useState<'first_visit' | 'follow_up'>('first_visit');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Confirmed booking state
   const [confirmedAppointment, setConfirmedAppointment] = useState<Appointment | null>(null);
@@ -195,10 +197,45 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
     setStep(3);
   };
 
+  // Validation for Step 5 (Patient Details)
+  const validateStep5 = (): boolean => {
+    const errs: Record<string, string> = {};
+
+    const nameCheck = validateName(patientName, 'Patient full name');
+    if (!nameCheck.isValid) {
+      errs.patientName = nameCheck.error || 'Please enter a valid full name.';
+    }
+
+    const phoneCheck = validateMobile(patientPhone, true);
+    if (!phoneCheck.isValid) {
+      errs.patientPhone = phoneCheck.error || 'Please enter a valid 10-digit mobile number.';
+    }
+
+    if (patientEmail && patientEmail.trim()) {
+      const emailCheck = validateEmail(patientEmail, false);
+      if (!emailCheck.isValid) {
+        errs.patientEmail = emailCheck.error || 'Please enter a valid email address.';
+      }
+    }
+
+    const reasonCheck = validateRequired(reasonForVisit, 'Reason for visit', 3);
+    if (!reasonCheck.isValid) {
+      errs.reasonForVisit = reasonCheck.error || 'Please describe your symptoms briefly.';
+    }
+
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
+
   // Submit Final Booking
   const handleConfirmBooking = async () => {
-    if (!selectedDoctor || !selectedDate || !selectedSlot || !patientName || !patientPhone || !reasonForVisit) {
-      setErrorMsg('Please ensure all required fields are filled.');
+    if (!validateStep5()) {
+      setStep(5);
+      return;
+    }
+
+    if (!selectedDoctor || !selectedDate || !selectedSlot) {
+      setErrorMsg('Please ensure all required booking fields are selected.');
       return;
     }
 
@@ -663,9 +700,19 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                       required
                       placeholder="e.g. Suresh Patil"
                       value={patientName}
-                      onChange={(e) => setPatientName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setPatientName(e.target.value);
+                        if (formErrors.patientName) setFormErrors(prev => ({ ...prev, patientName: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border focus:ring-2 focus:outline-hidden ${
+                        formErrors.patientName
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.patientName && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.patientName}</p>
+                    )}
                   </div>
 
                   <div>
@@ -675,11 +722,21 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                     <input
                       type="tel"
                       required
-                      placeholder="+91 98XXX XXXXX"
+                      placeholder="e.g. 9876543210"
                       value={patientPhone}
-                      onChange={(e) => setPatientPhone(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setPatientPhone(e.target.value);
+                        if (formErrors.patientPhone) setFormErrors(prev => ({ ...prev, patientPhone: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border focus:ring-2 focus:outline-hidden ${
+                        formErrors.patientPhone
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.patientPhone && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.patientPhone}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -690,9 +747,19 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                       type="email"
                       placeholder="e.g. patient@example.com"
                       value={patientEmail}
-                      onChange={(e) => setPatientEmail(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setPatientEmail(e.target.value);
+                        if (formErrors.patientEmail) setFormErrors(prev => ({ ...prev, patientEmail: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border focus:ring-2 focus:outline-hidden ${
+                        formErrors.patientEmail
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.patientEmail && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.patientEmail}</p>
+                    )}
                   </div>
 
                   <div className="sm:col-span-2">
@@ -734,9 +801,19 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                       required
                       placeholder="Please describe your symptoms briefly, e.g. Chest pain during exertion, knee stiffness..."
                       value={reasonForVisit}
-                      onChange={(e) => setReasonForVisit(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden resize-none"
+                      onChange={(e) => {
+                        setReasonForVisit(e.target.value);
+                        if (formErrors.reasonForVisit) setFormErrors(prev => ({ ...prev, reasonForVisit: '' }));
+                      }}
+                      className={`w-full px-3.5 py-2.5 rounded-xl border focus:ring-2 focus:outline-hidden resize-none ${
+                        formErrors.reasonForVisit
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {formErrors.reasonForVisit && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{formErrors.reasonForVisit}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -825,6 +902,9 @@ export const AppointmentBookingModal: React.FC<AppointmentBookingModalProps> = (
                     (step === 5 && (!patientName || !patientPhone || !reasonForVisit))
                   }
                   onClick={() => {
+                    if (step === 5) {
+                      if (!validateStep5()) return;
+                    }
                     setErrorMsg(null);
                     setStep(step + 1);
                   }}

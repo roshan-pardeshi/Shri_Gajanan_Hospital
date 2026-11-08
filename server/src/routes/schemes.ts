@@ -76,6 +76,10 @@ router.post('/', authenticateToken, requireAdmin, async (req: Request, res: Resp
       helpline_number,
     } = req.body;
 
+    if (!name || typeof name !== 'string' || !name.trim()) {
+      return res.status(400).json({ error: 'Health scheme name is required.' });
+    }
+
     const id = crypto.randomUUID();
 
     await query(

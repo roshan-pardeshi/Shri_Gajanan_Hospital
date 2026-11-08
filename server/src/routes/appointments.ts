@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import { query, withTransaction } from '../db';
 import { optionalAuth, authenticateToken, requireAdmin } from '../middleware/auth';
+import { validateName, validateMobile, validateEmail, validateAge, validateRequired } from '../utils/validation';
 
 const router = Router();
 
@@ -207,6 +208,32 @@ router.post('/book', optionalAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Missing mandatory appointment booking details.' });
     }
 
+    if (patient_name) {
+      const nameCheck = validateName(patient_name, 'Patient full name');
+      if (!nameCheck.isValid) {
+        return res.status(400).json({ error: nameCheck.error });
+      }
+    }
+
+    if (patient_phone) {
+      const phoneCheck = validateMobile(patient_phone, true);
+      if (!phoneCheck.isValid) {
+        return res.status(400).json({ error: phoneCheck.error });
+      }
+    }
+
+    if (patient_email) {
+      const emailCheck = validateEmail(patient_email, true);
+      if (!emailCheck.isValid) {
+        return res.status(400).json({ error: emailCheck.error });
+      }
+    }
+
+    const reasonCheck = validateRequired(reason_for_visit, 'Reason for visit', 3);
+    if (!reasonCheck.isValid) {
+      return res.status(400).json({ error: reasonCheck.error });
+    }
+
     const effectivePatientId = req.user?.id || patient_id || null;
     const formattedStartTime = start_time.length === 5 ? `${start_time}:00` : start_time;
     const formattedEndTime = (end_time || '').length === 5 ? `${end_time}:00` : (end_time || '10:00:00');
@@ -396,15 +423,35 @@ router.post('/offline', authenticateToken, requireAdmin, async (req: Request, re
     } = req.body;
 
     // 1. Mandatory Fields Validation
-    if (!patient_name || typeof patient_name !== 'string' || patient_name.trim().length < 2) {
-      return res.status(400).json({ error: 'Patient full name is required (minimum 2 characters).' });
+    const nameCheck = validateName(patient_name, 'Patient full name');
+    if (!nameCheck.isValid) {
+      return res.status(400).json({ error: nameCheck.error });
     }
-    const cleanName = patient_name.trim();
+    const cleanName = nameCheck.value!;
 
-    if (!patient_phone || typeof patient_phone !== 'string' || patient_phone.replace(/\D/g, '').length < 10) {
-      return res.status(400).json({ error: 'Valid 10-digit mobile number is required.' });
+    const phoneCheck = validateMobile(patient_phone, true);
+    if (!phoneCheck.isValid) {
+      return res.status(400).json({ error: phoneCheck.error });
     }
-    const cleanPhone = patient_phone.trim();
+    const cleanPhone = phoneCheck.value!;
+
+    let validatedAge: number | null = null;
+    if (age !== undefined && age !== null && age !== '') {
+      const ageCheck = validateAge(age, false);
+      if (!ageCheck.isValid) {
+        return res.status(400).json({ error: ageCheck.error });
+      }
+      validatedAge = ageCheck.value ?? null;
+    }
+
+    let validGender: string | null = null;
+    if (gender) {
+      const allowedGenders = ['Male', 'Female', 'Other', 'Prefer not to say'];
+      if (!allowedGenders.includes(gender)) {
+        return res.status(400).json({ error: 'Please select a valid gender option.' });
+      }
+      validGender = gender;
+    }
 
     if (!speciality_id || !doctor_id || !appointment_date || !start_time) {
       return res.status(400).json({ error: 'Speciality, doctor, appointment date, and time slot are required.' });
@@ -465,8 +512,7 @@ router.post('/offline', authenticateToken, requireAdmin, async (req: Request, re
       // 6. Patient Record Handling (Lookup existing or Create)
       let patientId: string | null = null;
       let patientEmail: string | null = null;
-      const parsedAge = age ? parseInt(String(age), 10) : null;
-      const validGender = ['Male', 'Female', 'Other', 'Prefer not to say'].includes(gender) ? gender : null;
+      const parsedAge = validatedAge;
 
       // Look up existing patient profile by mobile number
       const [existingProfiles]: any = await conn.query(

@@ -60,6 +60,17 @@ import { formatDate, formatTime12 } from '../../lib/utils';
 import { openWhatsAppForAppointment } from '../../lib/whatsapp';
 import { AdminLaboratoryTab } from './AdminLaboratoryTab';
 import { AdminChiefDoctorTab } from './AdminChiefDoctorTab';
+import {
+  validateName,
+  validateMobile,
+  validateEmail,
+  validateAge,
+  validatePincode,
+  validatePassword,
+  validateRequired,
+  validateFee,
+  validateExperience
+} from '../../utils/validation';
 
 export const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'appointments' | 'doctors' | 'laboratory' | 'schemes' | 'settings' | 'visibility' | 'reviews' | 'chief_doctor'>('appointments');
@@ -134,6 +145,10 @@ export const AdminDashboard: React.FC = () => {
   const [isSavingOffline, setIsSavingOffline] = useState<boolean>(false);
   const [offlineSuccessMsg, setOfflineSuccessMsg] = useState<string | null>(null);
   const [offlineErrorMsg, setOfflineErrorMsg] = useState<string | null>(null);
+  const [offlineFieldErrors, setOfflineFieldErrors] = useState<Record<string, string>>({});
+  const [doctorFieldErrors, setDoctorFieldErrors] = useState<Record<string, string>>({});
+  const [doctorErrorMsg, setDoctorErrorMsg] = useState<string | null>(null);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
   const [offlineForm, setOfflineForm] = useState<{
     patient_name: string;
     patient_phone: string;
@@ -580,38 +595,54 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     setOfflineErrorMsg(null);
 
-    if (!offlineForm.patient_name.trim()) {
-      setOfflineErrorMsg('Patient full name is required.');
-      return;
+    const errs: Record<string, string> = {};
+
+    const nameCheck = validateName(offlineForm.patient_name, 'Patient full name');
+    if (!nameCheck.isValid) {
+      errs.patient_name = nameCheck.error || 'Please enter a valid full name.';
     }
-    const cleanPhone = offlineForm.patient_phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
-      setOfflineErrorMsg('Please enter a valid 10-digit mobile number.');
-      return;
+
+    const phoneCheck = validateMobile(offlineForm.patient_phone, true);
+    if (!phoneCheck.isValid) {
+      errs.patient_phone = phoneCheck.error || 'Please enter a valid 10-digit mobile number.';
     }
+
+    let parsedAge: number | undefined;
+    if (offlineForm.age !== undefined && offlineForm.age !== '') {
+      const ageCheck = validateAge(offlineForm.age, false);
+      if (!ageCheck.isValid) {
+        errs.age = ageCheck.error || 'Age must be between 0 and 125.';
+      } else {
+        parsedAge = ageCheck.value;
+      }
+    }
+
     if (!offlineForm.speciality_id) {
-      setOfflineErrorMsg('Please select a medical speciality.');
-      return;
+      errs.speciality_id = 'Please select a medical speciality.';
     }
     if (!offlineForm.doctor_id) {
-      setOfflineErrorMsg('Please select a doctor.');
-      return;
+      errs.doctor_id = 'Please select a doctor.';
     }
     if (!offlineForm.appointment_date) {
-      setOfflineErrorMsg('Please select an appointment date.');
-      return;
+      errs.appointment_date = 'Please select an appointment date.';
     }
     if (!offlineForm.start_time) {
-      setOfflineErrorMsg('Please select an available time slot.');
+      errs.start_time = 'Please select an available time slot.';
+    }
+
+    if (Object.keys(errs).length > 0) {
+      setOfflineFieldErrors(errs);
+      setOfflineErrorMsg('Please correct the highlighted form errors.');
       return;
     }
+    setOfflineFieldErrors({});
 
     setIsSavingOffline(true);
     try {
       const created = await dataService.addOfflineAppointment({
-        patient_name: offlineForm.patient_name.trim(),
-        patient_phone: offlineForm.patient_phone.trim(),
-        age: offlineForm.age ? parseInt(offlineForm.age, 10) : undefined,
+        patient_name: nameCheck.value!,
+        patient_phone: phoneCheck.value!,
+        age: parsedAge,
         gender: (offlineForm.gender || undefined) as any,
         speciality_id: offlineForm.speciality_id,
         doctor_id: offlineForm.doctor_id,
@@ -635,11 +666,45 @@ export const AdminDashboard: React.FC = () => {
   // Handlers for Doctor Management
   const handleSaveDoctor = async (e: React.FormEvent) => {
     e.preventDefault();
+    setDoctorErrorMsg(null);
+
+    const docErrs: Record<string, string> = {};
+    const nameCheck = validateName(doctorForm.name, 'Doctor name');
+    if (!nameCheck.isValid) {
+      docErrs.name = nameCheck.error || 'Please enter a valid doctor name.';
+    }
+
+    const qualCheck = validateRequired(doctorForm.qualifications, 'Qualifications');
+    if (!qualCheck.isValid) {
+      docErrs.qualifications = qualCheck.error || 'Qualifications are required.';
+    }
+
+    const expCheck = validateExperience(doctorForm.experience_years);
+    if (!expCheck.isValid) {
+      docErrs.experience_years = expCheck.error || 'Experience must be between 0 and 70.';
+    }
+
+    const feeCheck = validateFee(doctorForm.consultation_fee);
+    if (!feeCheck.isValid) {
+      docErrs.consultation_fee = feeCheck.error || 'Consultation fee must be a positive number.';
+    }
+
+    if (Object.keys(docErrs).length > 0) {
+      setDoctorFieldErrors(docErrs);
+      setDoctorErrorMsg('Please correct the highlighted form errors.');
+      return;
+    }
+    setDoctorFieldErrors({});
+
     try {
       const specId = doctorForm.speciality_id || specialities[0]?.id || '';
       const matchedSpec = specialities.find(s => s.id === specId);
       const formToSave = {
         ...doctorForm,
+        name: nameCheck.value!,
+        qualifications: qualCheck.value!,
+        experience_years: expCheck.value!,
+        consultation_fee: feeCheck.value!,
         speciality_id: specId,
         speciality_name: matchedSpec?.name || doctorForm.speciality_name || 'General Medicine'
       };
@@ -651,8 +716,9 @@ export const AdminDashboard: React.FC = () => {
       setEditingDoctor(null);
       setIsAddDoctorModalOpen(false);
       await loadAllAdminData();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to save doctor:', err);
+      setDoctorErrorMsg(err.message || 'Failed to save doctor.');
     }
   };
 
@@ -782,9 +848,36 @@ export const AdminDashboard: React.FC = () => {
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!settings) return;
-    await dataService.updateHospitalSettings(settings);
-    setSettingsSaved(true);
-    setTimeout(() => setSettingsSaved(false), 3000);
+    setSettingsError(null);
+
+    if (settings.email && settings.email.trim()) {
+      const emailCheck = validateEmail(settings.email, false);
+      if (!emailCheck.isValid) {
+        setSettingsError(emailCheck.error || 'Please enter a valid email address.');
+        return;
+      }
+    }
+
+    if (settings.pincode && settings.pincode.trim()) {
+      const pinCheck = validatePincode(settings.pincode, false);
+      if (!pinCheck.isValid) {
+        setSettingsError(pinCheck.error || 'Please enter a valid 6-digit postal PIN code.');
+        return;
+      }
+    }
+
+    if (!settings.emergency_helpline || !settings.emergency_helpline.trim()) {
+      setSettingsError('24/7 Emergency Line is required.');
+      return;
+    }
+
+    try {
+      await dataService.updateHospitalSettings(settings);
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+    } catch (err: any) {
+      setSettingsError(err.message || 'Failed to update hospital settings.');
+    }
   };
 
   const todayStr = getTodayIST();
@@ -1840,6 +1933,13 @@ export const AdminDashboard: React.FC = () => {
               </div>
             )}
 
+            {settingsError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                <span>{settingsError}</span>
+              </div>
+            )}
+
             <form onSubmit={handleSaveSettings} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">Hospital Official Name</label>
@@ -2560,10 +2660,20 @@ export const AdminDashboard: React.FC = () => {
                         type="text"
                         required
                         value={offlineForm.patient_name}
-                        onChange={(e) => setOfflineForm(prev => ({ ...prev, patient_name: e.target.value }))}
+                        onChange={(e) => {
+                          setOfflineForm(prev => ({ ...prev, patient_name: e.target.value }));
+                          if (offlineFieldErrors.patient_name) setOfflineFieldErrors(prev => ({ ...prev, patient_name: '' }));
+                        }}
                         placeholder="e.g. Ramesh Patil"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden bg-white"
+                        className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden bg-white ${
+                          offlineFieldErrors.patient_name
+                            ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                            : 'border-slate-200 focus:ring-teal-500'
+                        }`}
                       />
+                      {offlineFieldErrors.patient_name && (
+                        <p className="text-[11px] text-rose-600 mt-1 font-medium">{offlineFieldErrors.patient_name}</p>
+                      )}
                     </div>
 
                     <div>
@@ -2575,10 +2685,20 @@ export const AdminDashboard: React.FC = () => {
                         required
                         maxLength={15}
                         value={offlineForm.patient_phone}
-                        onChange={(e) => setOfflineForm(prev => ({ ...prev, patient_phone: e.target.value }))}
+                        onChange={(e) => {
+                          setOfflineForm(prev => ({ ...prev, patient_phone: e.target.value }));
+                          if (offlineFieldErrors.patient_phone) setOfflineFieldErrors(prev => ({ ...prev, patient_phone: '' }));
+                        }}
                         placeholder="e.g. 9876543210"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden bg-white"
+                        className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden bg-white ${
+                          offlineFieldErrors.patient_phone
+                            ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                            : 'border-slate-200 focus:ring-teal-500'
+                        }`}
                       />
+                      {offlineFieldErrors.patient_phone && (
+                        <p className="text-[11px] text-rose-600 mt-1 font-medium">{offlineFieldErrors.patient_phone}</p>
+                      )}
                     </div>
                   </div>
 
@@ -2592,10 +2712,20 @@ export const AdminDashboard: React.FC = () => {
                         min="0"
                         max="125"
                         value={offlineForm.age}
-                        onChange={(e) => setOfflineForm(prev => ({ ...prev, age: e.target.value }))}
+                        onChange={(e) => {
+                          setOfflineForm(prev => ({ ...prev, age: e.target.value }));
+                          if (offlineFieldErrors.age) setOfflineFieldErrors(prev => ({ ...prev, age: '' }));
+                        }}
                         placeholder="e.g. 42"
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden bg-white"
+                        className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden bg-white ${
+                          offlineFieldErrors.age
+                            ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                            : 'border-slate-200 focus:ring-teal-500'
+                        }`}
                       />
+                      {offlineFieldErrors.age && (
+                        <p className="text-[11px] text-rose-600 mt-1 font-medium">{offlineFieldErrors.age}</p>
+                      )}
                     </div>
 
                     <div>
@@ -2824,6 +2954,13 @@ export const AdminDashboard: React.FC = () => {
                 {editingDoctor ? 'Edit Doctor Profile' : 'Add New Medical Consultant'}
               </h4>
 
+              {doctorErrorMsg && (
+                <div className="mb-3 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{doctorErrorMsg}</span>
+                </div>
+              )}
+
               <form onSubmit={handleSaveDoctor} className="space-y-3.5 text-xs">
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Doctor Name *</label>
@@ -2832,9 +2969,19 @@ export const AdminDashboard: React.FC = () => {
                     required
                     placeholder="e.g. Dr. Rajesh Deshmukh"
                     value={doctorForm.name || ''}
-                    onChange={(e) => setDoctorForm({ ...doctorForm, name: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                    onChange={(e) => {
+                      setDoctorForm({ ...doctorForm, name: e.target.value });
+                      if (doctorFieldErrors.name) setDoctorFieldErrors(prev => ({ ...prev, name: '' }));
+                    }}
+                    className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                      doctorFieldErrors.name
+                        ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                        : 'border-slate-200 focus:ring-teal-500'
+                    }`}
                   />
+                  {doctorFieldErrors.name && (
+                    <p className="text-[11px] text-rose-600 mt-1 font-medium">{doctorFieldErrors.name}</p>
+                  )}
                 </div>
 
                 <div>
@@ -2865,19 +3012,41 @@ export const AdminDashboard: React.FC = () => {
                       required
                       placeholder="MBBS, MD, DM"
                       value={doctorForm.qualifications || ''}
-                      onChange={(e) => setDoctorForm({ ...doctorForm, qualifications: e.target.value })}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      onChange={(e) => {
+                        setDoctorForm({ ...doctorForm, qualifications: e.target.value });
+                        if (doctorFieldErrors.qualifications) setDoctorFieldErrors(prev => ({ ...prev, qualifications: '' }));
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                        doctorFieldErrors.qualifications
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {doctorFieldErrors.qualifications && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{doctorFieldErrors.qualifications}</p>
+                    )}
                   </div>
 
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Years of Experience</label>
                     <input
                       type="number"
-                      value={doctorForm.experience_years || 5}
-                      onChange={(e) => setDoctorForm({ ...doctorForm, experience_years: Number(e.target.value) })}
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                      min="0"
+                      max="70"
+                      value={doctorForm.experience_years !== undefined ? doctorForm.experience_years : 5}
+                      onChange={(e) => {
+                        setDoctorForm({ ...doctorForm, experience_years: Number(e.target.value) });
+                        if (doctorFieldErrors.experience_years) setDoctorFieldErrors(prev => ({ ...prev, experience_years: '' }));
+                      }}
+                      className={`w-full px-3 py-2 rounded-xl border text-xs focus:ring-2 focus:outline-hidden ${
+                        doctorFieldErrors.experience_years
+                          ? 'border-rose-400 bg-rose-50/20 text-rose-900 focus:ring-rose-400'
+                          : 'border-slate-200 focus:ring-teal-500'
+                      }`}
                     />
+                    {doctorFieldErrors.experience_years && (
+                      <p className="text-[11px] text-rose-600 mt-1 font-medium">{doctorFieldErrors.experience_years}</p>
+                    )}
                   </div>
                 </div>
 
